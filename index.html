@@ -416,8 +416,21 @@ function diasVacEnMes(ini,fin,periodo){
   const s=a>pi?a:pi,e=b<pf?b:pf;if(e<s)return 0;
   return Math.min(30,Math.round((e-s)/864e5)+1);
 }
+/* ---------- Historial de remuneraciones ----------
+   w.sueldo = remuneración inicial (desde el ingreso); w.sueldoHist = [{desde:"AAAA-MM", monto}] cambios que rigen de ese mes en adelante */
+const ymOf=f=>(f||isoD(new Date())).slice(0,7);
+function sueldoAt(w,periodo){
+  const h=[...(w.sueldoHist||[])].filter(x=>x.desde<=periodo).sort((a,b)=>b.desde.localeCompare(a.desde));
+  return h.length?num(h[0].monto):num(w.sueldo);
+}
+/** Desde qué mes rige la remuneración aplicable al periodo */
+function sueldoDesde(w,periodo){const h=[...(w.sueldoHist||[])].filter(x=>x.desde<=periodo).sort((a,b)=>b.desde.localeCompare(a.desde));return h.length?h[0].desde:ymOf(w.fechaIngreso)}
+const conSueldo=(w,periodo)=>({...w,sueldo:sueldoAt(w,periodo)});
+/** Valida que una remuneración no sea menor a la RMV vigente en la fecha en que rige (salvo tiempo parcial) */
+function validaRmv(monto,fechaISO,parcial){const r=rmvAt(fechaISO);return parcial||num(monto)>=r?"":`es menor a la RMV vigente al ${fDMY(fechaISO)} (${S_(r)}). Solo se permite en contratos a tiempo parcial.`}
+
 function calcMes(w,per,periodo){
-  per=per||{};periodo=periodo||perSel;
+  per=per||{};periodo=periodo||perSel;w=conSueldo(w,periodo);
   const cfg=S.config,R=regW(w),rmv=rmvPer(periodo),[py,pm]=periodo.split("-").map(Number);
   const vacio=k=>per[k]===undefined||per[k]===null||per[k]==="";
   const dp=diasPlanilla(w,periodo);
@@ -539,7 +552,7 @@ function confirmar(msg,fn){openDlg(`<h2>Confirmar</h2><p>${esc(msg)}</p><div cla
 let filtroT="";
 function vTrab(){
   const E=emp(empSel),RE=reg(E.regimenId);
-  const totalSueldos=trabEmp().filter(w=>w.activo!==false).reduce((s,w)=>s+num(w.sueldo),0);
+  const totalSueldos=trabEmp().filter(w=>w.activo!==false).reduce((s,w)=>s+sueldoAt(w,ymOf()),0);
   $("#main").innerHTML=`
   <div class="kpis">
     <div class="kpi"><div class="l">Empresa · ${esc(RE.nombre)}</div><div class="v" style="font-size:15px">${esc(E.razon)}<div class="hint" style="margin:0">RUC ${esc(E.ruc)}</div></div></div>
@@ -564,7 +577,7 @@ function vTrabTable(){
     <td>${esc(w.puesto)}<div class="hint" style="margin:0">${esc((w.contrato||"").split(" (")[0])}</div></td><td><span class="tag">${esc(regW(w).nombre)}</span></td>
     <td>${w.pension==="AFP"?esc(A?A.nombre:"AFP")+` <span class="hint">(${w.tipoComision==="saldo"?"saldo":"flujo"})</span>`:esc(w.pension||"—")}</td>
     <td>${w.salud==="SIS"?"SIS":"EsSalud"}${w.sctr?' <span class="tag warn">SCTR</span>':""}</td>
-    <td class="n">${S_(w.sueldo)}${num(w.sueldo)<rmvAt()?' <span class="tag bad" title="Menor a la RMV">&lt; RMV</span>':""}</td>
+    <td class="n">${S_(sueldoAt(w,ymOf()))}${sueldoAt(w,ymOf())<rmvAt()&&!esParcial(w)?' <span class="tag bad" title="Menor a la RMV vigente: registra el nuevo sueldo">&lt; RMV</span>':""}${(w.sueldoHist||[]).length?`<div class="hint" style="margin:0">desde ${sueldoDesde(w,ymOf()).split("-").reverse().join("/")}</div>`:""}</td>
     <td>${esc(w.banco||"")}<div class="hint" style="margin:0">${esc(w.cuenta||"")}${w.cci?" · CCI "+esc(w.cci):""}</div></td>
     <td>${w.activo===false?'<span class="tag bad">Cesado</span>':'<span class="tag ok">Activo</span>'}</td>
     <td style="white-space:nowrap"><button class="btn sm" onclick="formTrab('${w.id}')">Editar</button> <button class="btn sm bad adm" onclick="delTrab('${w.id}')">Eliminar</button></td></tr>`}).join("")}
@@ -596,12 +609,16 @@ function formTrab(id){
     <label class="pff">Fecha fin de contrato<input type="date" name="fechaFinContrato" value="${esc(w.fechaFinContrato||"")}"></label>
     <label>Jornada (horas diarias)<input type="number" name="horasDia" min="1" max="12" step="0.5" value="${w.horasDia||8}" oninput="onContrato(true)"><span class="err" id="pcw"></span></label>
     <label>Empresa<select name="empresaId" onchange="onRegChange()">${S.empresas.map(e=>`<option value="${e.id}" ${e.id===w.empresaId?"selected":""}>${esc(e.razon)} – ${esc(e.ruc)}</option>`).join("")}</select><span id="regtxt" class="hint" style="margin:0"></span></label>
-    <label>Fecha de ingreso<input type="date" name="fechaIngreso" value="${esc(w.fechaIngreso)}"></label>
+    <label>Fecha de ingreso<input type="date" name="fechaIngreso" value="${esc(w.fechaIngreso)}" onchange="chkRmv()"></label>
     <label>Fecha de cese (si aplica)<input type="date" name="fechaCese" value="${esc(w.fechaCese||"")}"></label>
-    <label>Remuneración mensual (S/) *<input name="sueldo" type="number" step="0.01" min="0" value="${w.sueldo}" required oninput="chkRmv(this)"><span class="err" id="rmvw"></span></label>
+    <label>Remuneración inicial (S/) *<input name="sueldo" type="number" step="0.01" min="0" value="${w.sueldo}" required oninput="chkRmv()"><span class="err" id="rmvw"></span></label>
     <label>Retención 5ta categoría mensual (S/)<input name="quinta" type="number" step="0.01" min="0" value="${w.quinta||0}"></label>
     <label class="chk"><input type="checkbox" name="activo" ${w.activo!==false?"checked":""}> Activo</label>
   </div></fieldset>
+  <fieldset><legend>Cambios de remuneración (aumentos, nueva RMV)</legend>
+    <p class="hint">La <b>remuneración inicial</b> rige desde la fecha de ingreso. Cada cambio rige <b>desde el mes indicado en adelante</b>, sin tener que modificar cada mes. Los meses con cálculo ya generado no cambian.</p>
+    <div id="shist"></div><button type="button" class="btn sm" onclick="addSH()">+ Registrar cambio de remuneración</button>
+  </fieldset>
   <fieldset><legend>Pago</legend><div class="grid">
     <label>Banco<select name="banco"><option value="">— Seleccionar —</option>${BANCOS.map(b=>`<option ${b===w.banco?"selected":""}>${b}</option>`).join("")}</select></label>
     <label>N° de cuenta<input name="cuenta" value="${esc(w.cuenta)}"></label>
@@ -628,25 +645,46 @@ function formTrab(id){
   <div id="ferr" class="err"></div>
   <div class="dlg-foot"><button type="button" class="btn" onclick="closeDlg()">Cancelar</button><button class="btn pri">Guardar trabajador</button></div>
   </form>`);
-  onPenChange();onRegChange();onContrato();chkRmv($("#ft").sueldo);
+  shTmp=clone(w.sueldoHist||[]);drawSH();onPenChange();onRegChange();onContrato();chkRmv();
 }
 function descModo(c){return c.modo==="porc_rmv"?`${c.valor}% de la RMV`:c.modo==="porc_sueldo"?`${c.valor}% del sueldo`:`Monto fijo (${S_(c.valor)})`}
-function chkRmv(el){$("#rmvw").textContent=num(el.value)<rmvAt()?`Atención: es menor a la RMV (${S_(rmvAt())}). Solo válido para jornada parcial.`:""}
+let shTmp=[];
+function drawSH(){$("#shist").innerHTML=shTmp.length?`<table style="max-width:520px"><thead><tr><th>Rige desde (mes)</th><th class="n">Nueva remuneración (S/)</th><th></th></tr></thead><tbody>${[...shTmp].map((x,i)=>({...x,i})).sort((a,b)=>a.desde.localeCompare(b.desde)).map(x=>`<tr>
+  <td><input type="month" value="${esc(x.desde)}" onchange="shTmp[${x.i}].desde=this.value;chkRmv()"></td>
+  <td class="n"><input type="number" step="0.01" min="0" style="width:120px;text-align:right" value="${x.monto}" oninput="shTmp[${x.i}].monto=num(this.value);chkRmv()"></td>
+  <td><button type="button" class="btn sm bad" onclick="shTmp.splice(${x.i},1);drawSH();chkRmv()">✕</button></td></tr>`).join("")}</tbody></table>`:`<p class="hint" style="margin:0 0 8px">Sin cambios registrados.</p>`}
+function addSH(){const f=$("#ft");const ult=[...shTmp].sort((a,b)=>b.desde.localeCompare(a.desde))[0];
+  const desde=ymOf();shTmp.push({desde,monto:Math.max(rmvPer(desde),ult?num(ult.monto):num(f.sueldo.value))});drawSH();chkRmv()}
+/** Errores de RMV de la remuneración inicial y de cada cambio */
+function erroresSueldo(f){
+  const parcial=/^Tiempo parcial/.test(f.contrato.value),fi=f.fechaIngreso.value||isoD(new Date()),errs=[];
+  const e0=validaRmv(f.sueldo.value,fi,parcial);if(e0)errs.push(`La remuneración inicial ${e0}`);
+  const vistos=new Set();
+  shTmp.forEach(x=>{
+    if(!/^\d{4}-\d{2}$/.test(x.desde||""))return errs.push("Indica el mes desde el que rige cada cambio de remuneración.");
+    if(x.desde<=ymOf(fi))errs.push(`El cambio desde ${x.desde.split("-").reverse().join("/")} debe ser posterior al mes de ingreso.`);
+    if(vistos.has(x.desde))errs.push(`Hay dos cambios de remuneración en el mismo mes (${x.desde.split("-").reverse().join("/")}).`);vistos.add(x.desde);
+    const e=validaRmv(x.monto,x.desde+"-01",parcial);if(e)errs.push(`La remuneración desde ${x.desde.split("-").reverse().join("/")} (${S_(x.monto)}) ${e}`);
+  });
+  return errs;
+}
+function chkRmv(){const f=$("#ft");if(!f)return;$("#rmvw").textContent=erroresSueldo(f).join(" ")}
 function onPenChange(){const f=$("#ft");const on=f.pension.value==="AFP";f.querySelectorAll(".afpf").forEach(e=>e.style.display=on?"":"none")}
 function onRegChange(){const f=$("#ft");const R=reg(emp(f.empresaId.value).regimenId);$("#regtxt").textContent="Régimen: "+R.nombre;$("#sisw").textContent=f.salud.value==="SIS"&&R.salud!=="SIS_O_ESSALUD"?"Atención: por ley el SIS solo aplica a trabajadores de microempresa (REMYPE).":""}
 function onContrato(soloAviso){const f=$("#ft");const pf=/^(Plazo fijo|Exportación)/.test(f.contrato.value),pc=/^Tiempo parcial/.test(f.contrato.value);
   f.querySelectorAll(".pff").forEach(e=>e.style.display=pf?"":"none");
   if(pc&&!soloAviso&&num(f.horasDia.value)>=4)f.horasDia.value=3.5;
-  $("#pcw").textContent=pc?(num(f.horasDia.value)>=4?"Atención: el tiempo parcial exige una jornada MENOR a 4 h diarias.":"Tiempo parcial: no genera CTS, vacaciones ni indemnización."):""}
+  $("#pcw").textContent=pc?(num(f.horasDia.value)>=4?"Atención: el tiempo parcial exige una jornada MENOR a 4 h diarias.":"Tiempo parcial: no genera CTS, vacaciones ni indemnización."):"";chkRmv()}
 function onHijos(){const f=$("#ft"),cb=f.querySelector('.cc[data-id="ASIGFAM"]');if(cb)cb.checked=f.hijos.value==="SI"}
 function saveTrab(id){
   const f=$("#ft"),g=n=>f[n].value.trim();
   const w={id:id||uid(),dni:g("dni"),nombres:g("nombres"),apellidos:g("apellidos"),direccion:g("direccion"),correo:g("correo"),telefono:g("telefono"),puesto:g("puesto"),
-    empresaId:g("empresaId"),fechaIngreso:g("fechaIngreso"),fechaCese:g("fechaCese"),sueldo:r2(num(g("sueldo"))),quinta:r2(num(g("quinta"))),activo:f.activo.checked,
+    empresaId:g("empresaId"),fechaIngreso:g("fechaIngreso"),fechaCese:g("fechaCese"),sueldo:r2(num(g("sueldo"))),sueldoHist:shTmp.filter(x=>x.desde).map(x=>({desde:x.desde,monto:r2(num(x.monto))})).sort((a,b)=>a.desde.localeCompare(b.desde)),quinta:r2(num(g("quinta"))),activo:f.activo.checked,
     banco:g("banco"),cuenta:g("cuenta"),cci:g("cci"),pension:g("pension"),afpId:g("afpId"),tipoComision:g("tipoComision"),cuspp:g("cuspp"),salud:g("salud"),sctr:f.sctr.checked,conceptos:[],
     ...ubiVals(f),codigo:g("codigo"),fechaNac:g("fechaNac"),hijos:g("hijos"),categoria:g("categoria"),periodicidad:g("periodicidad"),contrato:g("contrato"),fechaFinContrato:g("fechaFinContrato"),horasDia:num(g("horasDia"))||8};
   f.querySelectorAll(".cc:checked").forEach(cb=>{const cid=cb.dataset.id;const mi=f.querySelector(`.cm[data-id="${cid}"]`);const a={id:cid};if(mi)a.monto=r2(num(mi.value));w.conceptos.push(a)});
   const errs=[];
+  const eS=erroresSueldo(f);if(eS.length){$("#ferr").innerHTML=eS.map(esc).join("<br>");return}
   if(!/^\d{8}$/.test(w.dni))errs.push("El DNI debe tener 8 dígitos (si es carné de extranjería, ignora este aviso y vuelve a guardar).");
   if(w.cci&&!/^\d{20}$/.test(w.cci))errs.push("El CCI debe tener 20 dígitos.");
   if(S.trabajadores.find(x=>x.dni===w.dni&&x.id!==w.id&&x.empresaId===w.empresaId))errs.push("Ya existe un trabajador con ese DNI en esta empresa.");
@@ -675,6 +713,8 @@ const genRows=()=>trabajadoresDelPeriodo().map(getCalc).filter(x=>x.gen);
 /** Se puede generar desde el último día del mes, o desde la fecha de cese si cesa dentro del mes */
 function puedeGenerar(w){
   const[y,m]=perSel.split("-").map(Number),fin=isoD(new Date(y,m-1,lastDay(y,m-1))),hoyS=isoD(new Date());
+  const su=sueldoAt(w,perSel),rm=rmvPer(perSel);
+  if(!esParcial(w)&&su<rm)return{ok:false,rmvFix:true,msg:`Su remuneración (${S_(su)}) es menor a la RMV de este mes (${S_(rm)}). Actualízala desde este mes.`};
   const fc=w.fechaCese&&w.fechaCese>=`${perSel}-01`&&w.fechaCese<=fin?w.fechaCese:"";
   if(hoyS>=fin)return{ok:true};
   if(fc&&hoyS>=fc)return{ok:true};
@@ -684,9 +724,14 @@ function puedeGenerar(w){
 function generar(wid,silencioso){
   const w=S.trabajadores.find(x=>x.id===wid),v=puedeGenerar(w);
   if(!v.ok){if(!silencioso)toast(v.msg);return false}
-  const p={...perData(wid)};p.gen={fecha:isoD(new Date()),w:clone(w),c:clone(calcMes(w,perData(wid)))};
+  const p={...perData(wid)};p.gen={fecha:isoD(new Date()),w:clone(conSueldo(w,perSel)),c:clone(calcMes(w,perData(wid)))};
   setPerAll(wid,p);if(!silencioso){vPlan();toast("Cálculo generado")}return true;
 }
+function setSueldoDesde(w,desde,monto){w.sueldoHist=(w.sueldoHist||[]).filter(x=>x.desde!==desde);
+  if(desde<=ymOf(w.fechaIngreso))w.sueldo=r2(monto);else w.sueldoHist.push({desde,monto:r2(monto)});
+  w.sueldoHist.sort((a,b)=>a.desde.localeCompare(b.desde));persist("trabajadores",w)}
+function subirARmv(wid){const w=S.trabajadores.find(x=>x.id===wid),r=rmvPer(perSel),[y,m]=perSel.split("-").map(Number);
+  confirmar(`Registrar la remuneración de ${nombreT(w)} en ${S_(r)} a partir de ${MESES[m-1]} ${y} (también para los meses siguientes)?`,()=>{setSueldoDesde(w,perSel,r);vPlan();toast("Remuneración actualizada")})}
 function generarTodos(){
   const pend=trabajadoresDelPeriodo().filter(w=>!perData(w.id).gen);
   if(!pend.length)return toast("No hay cálculos pendientes");
@@ -711,7 +756,7 @@ function vPlan(){
     <td class="n"><b>${fmt(c.neto)}</b></td>${td(c.essalud)}${td(c.sis)}${td(c.sctr+c.vida)}${td(c.provGrati+c.provBonif)}${td(c.provCTS)}${td(c.provVac)}
     <td style="white-space:nowrap"><button class="btn sm" onclick="boleta('${w.id}')">Ver boleta</button> <button class="btn sm" onclick="pdfUno('${w.id}')">PDF</button> <button class="btn sm bad adm" onclick="anularCalc('${w.id}')">Anular</button></td></tr>`;
   const filaPend=({w})=>{const v=puedeGenerar(w);return`<tr style="opacity:.92"><td><b>${esc(nombreT(w))}</b><div class="hint" style="margin:0">${esc(w.dni)} · ${esc(w.puesto)}</div></td>
-    <td><span class="tag warn">Pendiente</span></td><td colspan="20"><div class="row" style="align-items:center;gap:8px"><span class="adm" style="white-space:nowrap"><button class="btn sm pri" ${v.ok?"":"disabled"} title="${esc(v.msg||"")}" onclick="generar('${w.id}')">Generar cálculo</button> <button class="btn sm" onclick="vistaPrevia('${w.id}')">Vista previa</button> <button class="btn sm" onclick="ajustar('${w.id}')">Ajustar</button></span>
+    <td><span class="tag warn">Pendiente</span></td><td colspan="20"><div class="row" style="align-items:center;gap:8px"><span class="adm" style="white-space:nowrap"><button class="btn sm pri" ${v.ok?"":"disabled"} title="${esc(v.msg||"")}" onclick="generar('${w.id}')">Generar cálculo</button> <button class="btn sm" onclick="vistaPrevia('${w.id}')">Vista previa</button> <button class="btn sm" onclick="ajustar('${w.id}')">Ajustar</button>${v.rmvFix?` <button class="btn sm" style="border-color:var(--warn);color:var(--warn)" onclick="subirARmv('${w.id}')">Actualizar a ${S_(rmvPer(perSel))} desde este mes</button>`:""}</span>
     <span class="hint">${isAdmin()?(v.ok?"Listo para generar.":esc(v.msg)):"El cálculo de este mes aún no ha sido generado."}</span></div></td></tr>`};
   $("#main").innerHTML=`
   <div class="card"><div class="row" style="justify-content:space-between">
@@ -749,6 +794,10 @@ function ajustar(wid){
   openDlg(`<h2>Ajustes del mes – ${esc(nombreT(w))}</h2>
   <p class="hint">Las faltas, tardanzas, adelantos y retenciones judiciales se registran en la pestaña <b>Dcto.</b> Los campos vacíos usan el valor sugerido (en gris).</p>
   <form id="fa" onsubmit="event.preventDefault();saveAjuste('${wid}')">
+  <fieldset><legend>Remuneración</legend><div class="grid">
+    <label>Remuneración de este mes<input value="${fmt(sueldoAt(w,perSel))} (rige desde ${sueldoDesde(w,perSel).split("-").reverse().join("/")})" disabled></label>
+    <label>Nueva remuneración a partir de este mes (S/)<input type="number" step="0.01" min="0" name="nuevoSueldo" placeholder="Sin cambio" oninput="chkNS(${esParcial(w)})"><span class="err" id="nsw"></span></label>
+  </div><p class="hint" style="margin:6px 0 0">Si la registras, rige desde este mes <b>y en los meses siguientes</b>.</p></fieldset>
   <fieldset><legend>Vacaciones gozadas en el mes</legend><div class="grid">
     <label>Inicio de vacaciones<input type="date" name="vacIni" value="${val("vacIni")}" onchange="calcVacDlg()"></label>
     <label>Fin de vacaciones<input type="date" name="vacFin" value="${val("vacFin")}" onchange="calcVacDlg()"></label>
@@ -756,7 +805,7 @@ function ajustar(wid){
   </div><p class="hint" style="margin:6px 0 0">Los días de vacaciones se pagan como <b>remuneración vacacional</b> y se restan del sueldo computable.</p></fieldset>
   <fieldset><legend>Horas</legend><div class="grid">
     <label>Total horas laboradas<input type="number" min="0" name="horasLab" value="${val("horasLab")}" placeholder="${Math.round(c.dias*26/30)*c.horasDia}"></label>
-    <label>Horas extras (cantidad)<input type="number" min="0" step="0.5" name="heHoras" value="${val("heHoras")}" placeholder="0" oninput="sugHE(${num(w.sueldo)},${c.horasDia})"></label>
+    <label>Horas extras (cantidad)<input type="number" min="0" step="0.5" name="heHoras" value="${val("heHoras")}" placeholder="0" oninput="sugHE(${sueldoAt(w,perSel)},${c.horasDia})"></label>
     <label>Importe horas extras (S/)<input type="number" min="0" step="0.01" name="heMonto" value="${val("heMonto")}" placeholder="${fmt(c.heSug)}"><span class="hint" style="margin:0">Sugerido: valor hora × 1.25</span></label>
   </div></fieldset>
   <fieldset><legend>Otros ingresos del mes</legend><div class="grid">
@@ -784,8 +833,10 @@ function drawEx(){$("#ex").innerHTML=extrasTmp.map((x,i)=>`<div class="row" styl
   <input type="number" step="0.01" value="${x.monto}" oninput="extrasTmp[${i}].monto=this.value" style="width:110px">
   <label class="chk"><input type="checkbox" ${x.afecto?"checked":""} onchange="extrasTmp[${i}].afecto=this.checked"> Afecto</label>
   <button type="button" class="btn sm bad" onclick="extrasTmp.splice(${i},1);drawEx()">✕</button></div>`).join("")}
+function chkNS(parcial){const f=$("#fa");$("#nsw").textContent=f.nuevoSueldo.value===""?"":validaRmv(f.nuevoSueldo.value,perSel+"-01",parcial)?"Este importe "+validaRmv(f.nuevoSueldo.value,perSel+"-01",parcial):""}
 function saveAjuste(wid){
-  const f=$("#fa"),old=perData(wid),p={...old};
+  const f=$("#fa"),old=perData(wid),p={...old},wk=S.trabajadores.find(x=>x.id===wid);
+  if(f.nuevoSueldo.value!==""){const e=validaRmv(f.nuevoSueldo.value,perSel+"-01",esParcial(wk));if(e)return toast("La nueva remuneración "+e);setSueldoDesde(wk,perSel,num(f.nuevoSueldo.value))}
   const numOrEmpty=v=>v===""?"":r2(num(v));
   ["vacIni","vacFin"].forEach(k=>p[k]=f[k].value);
   ["diasVac","horasLab","heHoras","heMonto","movilidad","ctsPago","grati","bonif","quinta","otroEmp"].forEach(k=>p[k]=numOrEmpty(f[k].value));
@@ -811,7 +862,7 @@ function vDcto(){
    <th>Trabajador</th><th class="n">Días del mes</th><th class="n">Días vac.</th><th class="n">Días laborados</th><th class="n">Faltas</th><th class="n">Dcto. faltas (S/)</th>
    <th class="n">Tardanza (min)</th><th class="n">Dcto. tardanza (S/)</th><th class="n">Adelantos (S/)</th><th class="n">Ret. judicial (S/)</th><th class="n">Total dcto.</th><th class="n">Neto</th></tr></thead><tbody>
    ${ws.map(w=>{const gd=!!perData(w.id).gen,c=gd?perData(w.id).gen.c:calcMes(w,perData(w.id));return`<tr class="${gd?"lock":""}">
-    <td><b>${esc(nombreT(w))}</b>${gd?' <span class="tag ok">Generado</span>':""}<div class="hint" style="margin:0">Sueldo ${S_(w.sueldo)} · día ${S_(num(w.sueldo)/30)}</div></td>
+    <td><b>${esc(nombreT(w))}</b>${gd?' <span class="tag ok">Generado</span>':""}<div class="hint" style="margin:0">Sueldo ${S_(sueldoAt(w,perSel))} · día ${S_(sueldoAt(w,perSel)/30)}</div></td>
     <td class="n">${c.dp}</td><td class="n">${c.diasVac}</td>
     <td class="n"><input type="number" min="0" max="30" step="0.5" style="width:70px;text-align:right" id="dias-${w.id}" value="${perData(w.id).dias??""}" placeholder="${c.dp-c.diasVac}" onchange="setDcto('${w.id}','dias',this.value)"></td>
     <td class="n" id="fal-${w.id}">${c.faltas}</td>
@@ -898,7 +949,7 @@ function vBen(){
   const TE=trabEmp();
   if(!TE.length){$("#main").innerHTML=`<div class="card"><div class="empty">Registra trabajadores en esta empresa para calcular sus beneficios.</div></div>`;return}
   if(!TE.find(w=>w.id===benW))benW=TE[0].id;
-  const w=TE.find(x=>x.id===benW),R=regW(w),cfg=S.config;
+  const w=conSueldo(TE.find(x=>x.id===benW),ymOf(TE.find(x=>x.id===benW).fechaCese||undefined)),R=regW(w),cfg=S.config;
   const rmvB=rmvAt(w.fechaCese||undefined);
   const rc=remComputable(w,rmvB),rd=r2(rc/30);
   const fi=parseD(w.fechaIngreso),parcial=esParcial(w);
