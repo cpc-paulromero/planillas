@@ -559,7 +559,7 @@ function vTrab(){
   const totalSueldos=trabEmp().filter(w=>w.activo!==false).reduce((s,w)=>s+sueldoAt(w,ymOf()),0);
   $("#main").innerHTML=`
   <div class="kpis">
-    <div class="kpi"><div class="l">Empresa · ${esc(RE.nombre)}</div><div class="v" style="font-size:15px">${esc(E.razon)}<div class="hint" style="margin:0">RUC ${esc(E.ruc)}</div></div></div>
+    <div class="kpi"><div class="l">Empresa · ${esc(RE.nombre)}</div><div class="v" style="font-size:15px">${esc(E.razon)}<div class="hint" style="margin:0">RUC ${esc(E.ruc)}</div>${!isAdmin()&&canGest()?`<button class="btn sm" style="margin-top:6px" onclick="formEmp(MYEMP)">Editar rubro y dirección</button>`:""}</div></div>
     <div class="kpi"><div class="l">Trabajadores activos</div><div class="v">${trabEmp().filter(w=>w.activo!==false).length}</div></div>
     <div class="kpi"><div class="l">Suma de remuneraciones</div><div class="v">${S_(totalSueldos)}</div></div>
     <div class="kpi"><div class="l">RMV vigente</div><div class="v">${S_(rmvAt())}</div></div>
@@ -1165,24 +1165,30 @@ function permTxt(v){return v==="administrador"
   ?"<b>Administrador:</b> todo lo del usuario y además ajustes del mes, Dcto. (faltas, tardanzas, adelantos), generar/anular cálculos y eliminar trabajadores — solo en su empresa."
   :"<b>Usuario:</b> ve su empresa, crea y edita trabajadores, y descarga boletas y reportes."}
 function formEmp(id){
-  const e=id?emp(id):{ruc:"",razon:"",direccion:"",regimenId:S.config.regimenes[0].id};
-  openDlg(`<h2>${id?"Editar":"Nueva"} empresa</h2><form id="fe" onsubmit="event.preventDefault();saveEmp('${id||""}')"><div class="grid">
-   <label>RUC (11 dígitos) *<input name="ruc" maxlength="11" inputmode="numeric" value="${esc(e.ruc)}" required></label>
-   <label>Razón social *<input name="razon" value="${esc(e.razon)}" required></label>
+  if(!isAdmin()&&!(canGest()&&id===MYEMP))return;
+  const e=id?emp(id):{ruc:"",razon:"",direccion:"",regimenId:S.config.regimenes[0].id},ro=isAdmin()?"":"disabled";
+  openDlg(`<h2>${id?"Editar":"Nueva"} empresa</h2>${ro?`<p class="hint">Puedes actualizar el rubro, la dirección y la ubicación. El RUC, la razón social, el régimen laboral y los permisos solo los modifica el administrador general.</p>`:""}<form id="fe" onsubmit="event.preventDefault();saveEmp('${id||""}')"><div class="grid">
+   <label>RUC (11 dígitos) *<input name="ruc" maxlength="11" inputmode="numeric" value="${esc(e.ruc)}" required ${ro}></label>
+   <label>Razón social *<input name="razon" value="${esc(e.razon)}" required ${ro}></label>
    <label>Rubro de la empresa<input name="rubro" value="${esc(e.rubro||"")}" placeholder="Ej. Actividades jurídicas"></label>
    <label style="grid-column:1/-1">Dirección fiscal (calle, número, urbanización)<input name="direccion" value="${esc(e.direccion||"")}" placeholder="Ej. Mza. A Lote 1J Urb. Los Portales del Golf"></label>
    ${ubiHTML(e)}
    <label>Ciudad para la fecha de la boleta<input name="ciudad" value="${esc(e.ciudad||"")}" placeholder="Si se deja vacío: la provincia"></label>
-   <label>Permisos del representante legal<select name="permiso" onchange="$('#permtxt').innerHTML=permTxt(this.value)">
+   <label>Permisos del representante legal<select name="permiso" ${ro} onchange="$('#permtxt').innerHTML=permTxt(this.value)">
      <option value="usuario" ${(e.permiso||"usuario")==="usuario"?"selected":""}>Usuario</option>
      <option value="administrador" ${e.permiso==="administrador"?"selected":""}>Administrador</option></select>
      <span class="hint" id="permtxt" style="margin:0">${permTxt(e.permiso||"usuario")}</span></label>
-   <label>Régimen laboral *<select name="regimenId">${S.config.regimenes.map(r=>`<option value="${r.id}" ${r.id===e.regimenId?"selected":""}>${esc(r.nombre)}${r.ventasUIT?` (ventas ≤ ${r.ventasUIT} UIT)`:""}</option>`).join("")}</select></label>
+   <label>Régimen laboral *<select name="regimenId" ${ro}>${S.config.regimenes.map(r=>`<option value="${r.id}" ${r.id===e.regimenId?"selected":""}>${esc(r.nombre)}${r.ventasUIT?` (ventas ≤ ${r.ventasUIT} UIT)`:""}</option>`).join("")}</select></label>
    </div>${id&&S.trabajadores.some(w=>w.empresaId===id)?`<div class="note">Si cambias el régimen, la planilla y los beneficios de todos sus trabajadores se recalcularán con el nuevo régimen.</div>`:""}
    <div id="eerr" class="err"></div>
    <div class="dlg-foot"><button type="button" class="btn" onclick="closeDlg()">Cancelar</button><button class="btn pri">Guardar empresa</button></div></form>`);
 }
-function saveEmp(id){const f=$("#fe");
+async function saveEmp(id){const f=$("#fe");
+  if(!isAdmin()){   // administrador de empresa: solo rubro, dirección y ubicación, vía función segura del servidor
+    const d={rubro:f.rubro.value.trim(),direccion:f.direccion.value.trim(),ciudad:f.ciudad.value.trim(),...ubiVals(f)};
+    const{error}=await sb.rpc("emp_actualizar_datos",{p_rubro:d.rubro,p_direccion:d.direccion,p_departamento:d.departamento,p_provincia:d.provincia,p_distrito:d.distrito,p_ciudad:d.ciudad});
+    if(error){$("#eerr").textContent="No se pudo guardar: "+error.message;return}
+    Object.assign(emp(MYEMP),d);closeDlg();render();toast("Datos de la empresa actualizados");return}
   const o={permiso:f.permiso.value,ruc:f.ruc.value.trim(),razon:f.razon.value.trim(),direccion:f.direccion.value.trim(),regimenId:f.regimenId.value,rubro:f.rubro.value.trim(),ciudad:f.ciudad.value.trim(),...ubiVals(f)};
   const err=[];
   if(!/^(10|15|16|17|20)\d{9}$/.test(o.ruc))err.push("El RUC debe tener 11 dígitos y empezar con 10, 15, 16, 17 o 20.");
@@ -1232,6 +1238,7 @@ function quitarAcceso(id){confirmar("¿Quitar el acceso del representante legal?
 function vCuenta(){
   $("#main").innerHTML=`<div class="card" style="max-width:520px"><h2>Mi cuenta</h2>
   <p class="hint">${isAdmin()?`Administrador: ${esc(ME.email)}`:`Representante legal de <b>${esc(emp(MYEMP)?.razon||"")}</b> · Usuario: RUC ${esc(emp(MYEMP)?.ruc||"")}`}</p>
+  ${!isAdmin()&&canGest()?`<div class="note info" style="margin-bottom:12px">Como administrador de tu empresa puedes actualizar su rubro y dirección. <button class="btn sm" style="margin-left:6px" onclick="formEmp(MYEMP)">Editar datos de la empresa</button></div>`:""}
   <form id="fp" onsubmit="event.preventDefault();cambiarPass()" style="display:flex;flex-direction:column;gap:12px">
    <label>Contraseña actual<input type="password" name="a" autocomplete="current-password" required></label>
    <label>Nueva contraseña (mín. 8 caracteres)<input type="password" name="n" minlength="8" autocomplete="new-password" required></label>
