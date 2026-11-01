@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planillas Perú – Sueldos y Beneficios</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{
+  --bg:#f5f6f8;--card:#fff;--ink:#1d2330;--muted:#667085;--line:#e3e6ec;
+  --pri:#1f5fbf;--pri-soft:#e8f0fc;--ok:#13795b;--ok-soft:#e5f5ee;--warn:#a15c00;--warn-soft:#fff4e0;--bad:#b42318;--bad-soft:#fdecea;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#12151b;--card:#1b2029;--ink:#e7eaf0;--muted:#98a2b3;--line:#2c3340;--pri:#6ea2ff;--pri-soft:#1e2b44;--ok:#4cc79a;--ok-soft:#163128;--warn:#f0b35a;--warn-soft:#3a2c15;--bad:#ff8a80;--bad-soft:#3d1f1d}
+}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0}
+header .sub{color:var(--muted);font-size:12px}
+#sync{font-size:12px;color:var(--muted)}
+#hdr select{font-weight:600;max-width:320px}
+.pill{font-size:12px;padding:5px 10px;border-radius:99px;background:var(--ok-soft);color:var(--ok);font-weight:600;cursor:pointer;border:0}
+nav{display:flex;gap:4px;padding:8px 20px;background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{border:0;background:none;padding:8px 12px;border-radius:8px;color:var(--muted);font:inherit;cursor:pointer;white-space:nowrap}
+nav button.on{background:var(--pri-soft);color:var(--pri);font-weight:600}
+main{padding:20px;max-width:1400px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 4px}
+.card h3{font-size:14px;margin:16px 0 8px}
+.hint{color:var(--muted);font-size:12px;margin:0 0 12px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+label.chk{flex-direction:row;align-items:center;gap:6px;color:var(--ink);font-size:13px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;min-width:0}
+input:focus,select:focus{outline:2px solid var(--pri);outline-offset:-1px}
+input[type=checkbox]{width:16px;height:16px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 12px;border-radius:7px;font:inherit;cursor:pointer}
+.btn:hover{border-color:var(--pri)}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+.btn.bad{color:var(--bad)}
+.btn.sm{padding:3px 8px;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:600;background:var(--bg);position:sticky;top:0}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tfoot td{font-weight:700;background:var(--bg)}
+.scroll{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:8px}
+.tag{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;background:var(--pri-soft);color:var(--pri);font-weight:600}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}.tag.warn{background:var(--warn-soft);color:var(--warn)}.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.note{padding:10px 12px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:12px;margin:8px 0}
+.note.info{background:var(--pri-soft);color:var(--pri)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.kpi .l{font-size:12px;color:var(--muted)}.kpi .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto;z-index:10}
+#ov.on{display:flex}
+#dlg{background:var(--card);border-radius:12px;max-width:960px;width:100%;padding:20px;border:1px solid var(--line)}
+#dlg h2{margin:0 0 12px;font-size:17px}
+.dlg-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+fieldset{border:1px solid var(--line);border-radius:8px;padding:12px;margin:0 0 12px}
+legend{font-size:12px;font-weight:700;padding:0 6px;color:var(--pri)}
+.err{color:var(--bad);font-size:12px}
+.boleta{font-size:13px}
+.boleta table td{padding:4px 6px}
+.cols3{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px;opacity:0;transition:.2s;pointer-events:none;z-index:20}
+.toast.on{opacity:1}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.rep .adm{display:none!important}
+#login,#boot{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.lcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px;width:100%;max-width:400px}
+.lcard h1{margin:0 0 6px;font-size:22px}.lcard form{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+#who{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="boot"><div class="lcard"><h1>Planillas Perú</h1><p class="hint">Cargando…</p></div></div>
+<div id="login" style="display:none"><div class="lcard"><h1>Planillas Perú</h1>
+  <p class="hint">Representante legal: ingresa con el <b>RUC</b> de tu empresa.<br>Administrador: ingresa con tu <b>correo</b>.</p>
+  <form onsubmit="doLogin(event)"><label>RUC o correo<input id="lu" autocomplete="username" required></label>
+  <label>Contraseña<input id="lp" type="password" autocomplete="current-password" required></label>
+  <div id="lerr" class="err"></div><button class="btn pri" id="lbtn">Ingresar</button></form></div></div>
+<div id="app" style="display:none">
+<header>
+  <div><h1>Planillas Perú</h1><div class="sub">Cálculo de sueldos, aportes y beneficios sociales por régimen laboral</div></div>
+  <div id="hdr" class="row" style="margin-left:auto;align-items:center"></div>
+  <div id="sync"></div>
+  <div class="row" style="align-items:center"><span id="who"></span><button class="btn sm" onclick="go('cuenta')">Mi cuenta</button><button class="btn sm" onclick="logout()">Cerrar sesión</button></div>
+</header>
+<nav id="nav"></nav>
+<main id="main"></main>
+</div>
+<div id="ov"><div id="dlg"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   DATOS POR DEFECTO (todos editables desde la app)
+   ========================================================= */
+const DEF = {
+  config:{
+    rmvHist:[{desde:"2025-01-01",monto:1130},{desde:"2026-10-01",monto:1230}], // historial RMV por vigencia
+    uit:5500,
+    essalud:9, onp:13,
+    sisAporte:15,          // aporte mensual del empleador al SIS (microempresa)
+    rma:12234.33,          // remuneración máxima asegurable (tope prima de seguros AFP)
+    bonifExtra:9,          // bonificación extraordinaria Ley 30334 (9% EsSalud / 6.75% EPS)
+    vidaLeyTasa:0,         // % aprox. prima Vida Ley (según póliza)
+    sctrTasa:0,            // % aprox. SCTR (según póliza)
+    regimenes:[
+      {id:"MICRO",nombre:"Microempresa",ventasUIT:150,vacDias:15,gratiFactor:0,ctsFactor:0,indemRD:10,indemTope:90,indemFraccion:false,salud:"SIS_O_ESSALUD",vidaLey:false,sctr:false,
+       notas:"Ventas anuales ≤ 150 UIT. RMV mínima. Descanso semanal 24 h. Vacaciones 15 días. Feriados del régimen común. SIS o EsSalud. Indemnización: 10 RD por año completo, tope 90 RD."},
+      {id:"PEQUENA",nombre:"Pequeña empresa",ventasUIT:1700,vacDias:15,gratiFactor:0.5,ctsFactor:0.5,indemRD:20,indemTope:120,indemFraccion:false,salud:"ESSALUD",vidaLey:true,sctr:true,
+       notas:"Ventas anuales ≤ 1700 UIT. RMV mínima. Vacaciones 15 días. EsSalud contributivo. CTS 15 RD por año (tope 90 RD). Gratificación de 1/2 sueldo (jul/dic). SCTR si hay alto riesgo. Vida Ley. Licencias. Indemnización: 20 RD por año completo, tope 120 RD."},
+      {id:"DL728",nombre:"D.L. 728 – Mediana y gran empresa",ventasUIT:null,vacDias:30,gratiFactor:1,ctsFactor:1,indemRD:45,indemTope:360,indemFraccion:true,salud:"ESSALUD",vidaLey:true,sctr:true,
+       notas:"Régimen general. Vacaciones 30 días. EsSalud. CTS: 1 remuneración computable por año (RC = sueldo + 1/6 gratificación) / 12 × meses. 2 gratificaciones (jul/dic). SCTR si hay alto riesgo. Vida Ley. Licencias. Indemnización: 1.5 sueldos por año (45 RD), tope 12 sueldos."}
+    ]
+  },
+  afps:[
+    {id:"HABITAT",nombre:"AFP Habitat",comision:1.47,comisionSaldo:1.25,prima:1.37,aporte:10},
+    {id:"INTEGRA",nombre:"AFP Integra",comision:1.55,comisionSaldo:0.78,prima:1.37,aporte:10},
+    {id:"PRIMA",nombre:"Prima AFP",comision:1.60,comisionSaldo:1.25,prima:1.37,aporte:10},
+    {id:"PROFUTURO",nombre:"Profuturo AFP",comision:1.69,comisionSaldo:0.68,prima:1.37,aporte:10}
+  ],
+  conceptos:[
+    {id:"ASIGFAM",nombre:"Asignación familiar",tipo:"ingreso",modo:"porc_rmv",valor:10,afectoEssalud:true,afectoPension:true,computable:true,sistema:true}
+  ],
+  empresas:[],
+  trabajadores:[],
+  periodos:{}
+};
+const BANCOS=["BCP – Banco de Crédito","BBVA","Interbank","Scotiabank","Banco de la Nación","BanBif","Banco Pichincha","Mibanco","Banco GNB","Banco Falabella","Banco Ripley","Caja Arequipa","Caja Huancayo","Caja Piura","Otro"];
+const MESES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+/* =========================================================
+   ESTADO Y PERSISTENCIA
+   ========================================================= */
+const KEYS=["config","afps","conceptos","empresas","trabajadores","periodos"];
+const clone=o=>JSON.parse(JSON.stringify(o));
+let S=clone(DEF);
+const LS="planillas-pe-v1";
+/* ---------- Conexión con Supabase ---------- */
+const REP_DOMAIN="empresa.planillas.pe";           // debe coincidir con public.rep_email() en supabase.sql
+const CFG=window.PLANILLAS_CONFIG||{};
+let sb=null, ROLE=null, ME=null, MYEMP=null, REPS=new Set();
+const isAdmin=()=>ROLE==="admin";
+const timers={}; let chainP=Promise.resolve();
+function setSync(t){const e=document.getElementById("sync");if(e)e.textContent=t}
+/** Encola las escrituras para que se ejecuten una a una y en orden */
+function q(fn){
+  chainP=chainP.then(async()=>{setSync("Guardando…");const r=await fn();if(r&&r.error){setSync("⚠ Error al guardar");toast("No se pudo guardar: "+r.error.message);return}setSync("✓ Guardado")}).catch(e=>{setSync("⚠ Error al guardar");toast("No se pudo guardar: "+(e.message||e))});
+  return chainP;
+}
+const empRow=e=>({id:e.id,ruc:e.ruc,razon:e.razon,direccion:e.direccion||"",regimen_id:e.regimenId});
+const trabRow=w=>({id:w.id,empresa_id:w.empresaId,data:w,updated_at:new Date().toISOString()});
+function perRows(per){
+  const out={};
+  Object.entries(S.periodos[per]||{}).forEach(([wid,p])=>{const w=S.trabajadores.find(x=>x.id===wid);if(!w)return;(out[w.empresaId]=out[w.empresaId]||{})[wid]=p});
+  return Object.entries(out).map(([empresa_id,data])=>({empresa_id,periodo:per,data}));
+}
+function persist(k,item){
+  if(!isAdmin()||!sb)return;
+  const key=k+(item?":"+item.id:"");
+  clearTimeout(timers[key]);
+  timers[key]=setTimeout(()=>{
+    if(["config","afps","conceptos"].includes(k))q(()=>sb.from("ajustes").upsert({clave:k,data:S[k]}));
+    else if(k==="empresas")q(()=>sb.from("empresas").upsert(S.empresas.map(empRow)));
+    else if(k==="trabajadores"){const list=item?[item]:S.trabajadores;if(list.length)q(()=>sb.from("trabajadores").upsert(list.map(trabRow)))}
+    else if(k==="periodos"){const rows=perRows(perSel);if(rows.length)q(()=>sb.from("periodos").upsert(rows))}
+  },k==="empresas"?0:400);
+}
+function dbDel(table,col,val){if(isAdmin())q(()=>sb.from(table).delete().eq(col,val))}
+async function saveAll(){
+  if(!isAdmin())return;
+  for(const k of ["config","afps","conceptos"])await q(()=>sb.from("ajustes").upsert({clave:k,data:S[k]}));
+  if(S.empresas.length)await q(()=>sb.from("empresas").upsert(S.empresas.map(empRow)));
+  if(S.trabajadores.length)await q(()=>sb.from("trabajadores").upsert(S.trabajadores.map(trabRow)));
+  const pers=Object.keys(S.periodos).flatMap(perRows);
+  if(pers.length)await q(()=>sb.from("periodos").upsert(pers));
+}
+async function loadAll(){
+  setSync("Cargando…");
+  const res=await Promise.all(["ajustes","empresas","trabajadores","periodos"].map(t=>sb.from(t).select("*")));
+  const bad=res.find(r=>r.error);if(bad)throw bad.error;
+  const[aj,em,tr,pe]=res.map(r=>r.data||[]);
+  S=clone(DEF);
+  aj.forEach(r=>{S[r.clave]=r.data});
+  S.empresas=em.map(r=>({id:r.id,ruc:r.ruc,razon:r.razon,direccion:r.direccion,regimenId:r.regimen_id})).sort((a,b)=>a.razon.localeCompare(b.razon));
+  S.trabajadores=tr.map(r=>({...r.data,id:r.id,empresaId:r.empresa_id})).sort((a,b)=>nombreT(a).localeCompare(nombreT(b)));
+  S.periodos={};pe.forEach(r=>{S.periodos[r.periodo]=Object.assign(S.periodos[r.periodo]||{},r.data)});
+  const before=JSON.stringify(S);migrate();
+  if(isAdmin()){
+    if(!aj.length||JSON.stringify(S)!==before)await saveAll();
+    const{data:reps}=await sb.from("profiles").select("empresa_id").eq("role","rep");
+    REPS=new Set((reps||[]).map(r=>r.empresa_id));
+  }
+  setSync("✓ Conectado");
+}
+/* ---------- Inicio de sesión ---------- */
+function showLogin(msg){$("#boot").style.display="none";$("#app").style.display="none";$("#login").style.display="flex";$("#lerr").textContent=msg||"";$("#lbtn").disabled=false}
+async function boot(){
+  if(!window.supabase||!CFG.SUPABASE_URL||/TU-PROYECTO/.test(CFG.SUPABASE_URL)||!CFG.SUPABASE_ANON_KEY){
+    $("#boot").innerHTML=`<div class="lcard"><h1>Planillas Perú</h1><div class="note">Falta configurar la conexión. Edita el archivo <b>config.js</b> con la URL y la clave pública (anon key) de tu proyecto de Supabase.</div></div>`;return}
+  sb=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY);
+  const{data:{session}}=await sb.auth.getSession();
+  if(session)await enter(session.user);else showLogin();
+}
+async function enter(user){
+  ME=user;
+  const{data:p,error}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
+  if(error||!p){await sb.auth.signOut();return showLogin("Tu usuario no tiene acceso a la aplicación. Comunícate con el administrador.")}
+  ROLE=p.role;MYEMP=p.empresa_id;
+  document.body.classList.toggle("rep",!isAdmin());
+  try{await loadAll()}catch(e){return showLogin("No se pudo cargar la información: "+(e.message||e))}
+  if(!isAdmin())empSel=MYEMP;else if(!emp(empSel))empSel=S.empresas[0]?.id||"";
+  if(!tabsRol().find(t=>t[0]===tab))tab=isAdmin()?"empresas":"planilla";
+  $("#who").textContent=isAdmin()?`Administrador · ${user.email}`:`Representante legal · RUC ${emp(MYEMP)?.ruc||""}`;
+  $("#boot").style.display="none";$("#login").style.display="none";$("#app").style.display="";
+  render();
+}
+async function doLogin(ev){
+  ev.preventDefault();
+  const u=$("#lu").value.trim(),p=$("#lp").value;
+  const email=/^\d{11}$/.test(u)?`${u}@${REP_DOMAIN}`:u;
+  $("#lbtn").disabled=true;$("#lerr").textContent="";
+  const{data,error}=await sb.auth.signInWithPassword({email,password:p});
+  if(error){$("#lbtn").disabled=false;$("#lerr").textContent=/invalid/i.test(error.message)?"RUC/correo o contraseña incorrectos.":error.message;return}
+  await enter(data.user);
+}
+async function logout(){try{await sb.auth.signOut()}catch(e){}location.hash="";location.reload()}
+function migrate(){
+  // asegura que existan campos nuevos si se cargan datos antiguos
+  S.config={...clone(DEF.config),...S.config};
+  if(!S.config.regimenes||!S.config.regimenes.length)S.config.regimenes=clone(DEF.config.regimenes);
+  if(!S.conceptos.find(c=>c.id==="ASIGFAM"))S.conceptos.unshift(clone(DEF.conceptos[0]));
+  S.periodos=S.periodos||{};
+  // AFP: la comisión mixta fue reemplazada por la comisión anual sobre saldo
+  const SALDO={HABITAT:1.25,INTEGRA:0.78,PRIMA:1.25,PROFUTURO:0.68};
+  S.afps.forEach(a=>{if(a.comisionSaldo===undefined)a.comisionSaldo=SALDO[a.id]??0;delete a.comisionMixta});
+  S.trabajadores.forEach(w=>{if(w.tipoComision==="mixta")w.tipoComision="saldo"});
+  // RMV: pasa de valor único a historial con vigencias
+  if(!Array.isArray(S.config.rmvHist)||!S.config.rmvHist.length){S.config.rmvHist=clone(DEF.config.rmvHist)}
+  if(S.config.rmv!==undefined){const old=num(S.config.rmv);delete S.config.rmv;if(old&&!S.config.rmvHist.some(h=>h.monto===old))S.config.rmvHist.push({desde:"2025-01-01",monto:old})}
+  if(!S.config.rmvHist.some(h=>h.monto===1230))S.config.rmvHist.push({desde:"2026-10-01",monto:1230});
+  S.config.rmvHist.forEach(h=>{if(h.monto===1230&&h.desde==="2026-11-01")h.desde="2026-10-01"}); // corrección: RMV 1230 rige desde 01/10/2026
+  S.config.rmvHist.sort((a,b)=>a.desde.localeCompare(b.desde));
+  // Empresas: trabajadores antiguos sin empresa pasan a una empresa creada con los datos previos
+  S.empresas=S.empresas||[];
+  const sueltos=S.trabajadores.filter(w=>!w.empresaId);
+  if(sueltos.length){const E=S.config.empresa||{};
+    const e={id:uid(),ruc:E.ruc||"",razon:E.razon||"Empresa sin nombre (edítala)",direccion:E.direccion||"",regimenId:sueltos[0].regimenId||S.config.regimenes[0].id};
+    S.empresas.push(e);sueltos.forEach(w=>w.empresaId=e.id)}
+  delete S.config.empresa;
+  if(!S.empresas.find(e=>e.id===empSel))empSel=S.empresas[0]?.id||"";
+}
+
+/* =========================================================
+   UTILIDADES
+   ========================================================= */
+const $=s=>document.querySelector(s);
+const r2=n=>Math.round((+n+Number.EPSILON)*100)/100;
+const fmt=n=>(+n||0).toLocaleString("es-PE",{minimumFractionDigits:2,maximumFractionDigits:2});
+const S_=n=>"S/ "+fmt(n);
+const num=v=>{const x=parseFloat(String(v).replace(",","."));return isNaN(x)?0:x};
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+const reg=id=>S.config.regimenes.find(r=>r.id===id)||S.config.regimenes[0];
+const emp=id=>S.empresas.find(e=>e.id===id);
+const regW=w=>reg(emp(w.empresaId)?.regimenId||w.regimenId);
+let empSel=(()=>{try{return localStorage.getItem(LS+"-emp")||""}catch(e){return""}})();
+function setEmp(id){empSel=id;try{localStorage.setItem(LS+"-emp",id)}catch(e){};render()}
+const trabEmp=()=>S.trabajadores.filter(w=>w.empresaId===empSel);
+/** RMV vigente a una fecha (YYYY-MM-DD); por defecto, hoy */
+function rmvAt(f){f=f||isoD(new Date());const h=[...S.config.rmvHist].sort((a,b)=>b.desde.localeCompare(a.desde));const x=h.find(r=>r.desde<=f)||h[h.length-1];return x?num(x.monto):0}
+const rmvPer=per=>rmvAt(per+"-01");
+const afp=id=>S.afps.find(a=>a.id===id);
+const nombreT=w=>`${w.apellidos}, ${w.nombres}`;
+function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("on"),2200)}
+function parseD(s){if(!s)return null;const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}
+function isoD(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
+function lastDay(y,m){return new Date(y,m+1,0).getDate()}
+function addMonths(d,n){const y=d.getFullYear(),m=d.getMonth()+n;const t=new Date(y,m,1);t.setDate(Math.min(d.getDate(),lastDay(t.getFullYear(),t.getMonth())));return t}
+/** tiempo entre a y b (ambos inclusive) => {a: años, m: meses, d: días} */
+function tiempo(a,b){
+  if(!a||!b||b<a)return{a:0,m:0,d:0,tm:0};
+  const e=new Date(b);e.setDate(e.getDate()+1);
+  let m=(e.getFullYear()-a.getFullYear())*12+e.getMonth()-a.getMonth();
+  let t=addMonths(a,m); if(t>e){m--;t=addMonths(a,m)}
+  const d=Math.round((e-t)/864e5);
+  return{a:Math.floor(m/12),m:m%12,d,tm:m};
+}
+
+/* =========================================================
+   MOTOR DE CÁLCULO
+   ========================================================= */
+function montoConcepto(c,asig,w,override,rmv){
+  if(override!==undefined&&override!==null&&override!=="")return r2(num(override));
+  if(c.modo==="porc_rmv")return r2((rmv??rmvAt())*num(c.valor)/100);
+  if(c.modo==="porc_sueldo")return r2(num(w.sueldo)*num(c.valor)/100);
+  return r2(num(asig&&asig.monto!==undefined&&asig.monto!==""?asig.monto:c.valor));
+}
+/** Remuneración computable mensual (para beneficios): sueldo + conceptos computables (mes completo) */
+function remComputable(w,rmv){
+  let rc=num(w.sueldo);
+  (w.conceptos||[]).forEach(a=>{const c=S.conceptos.find(x=>x.id===a.id);if(c&&c.tipo==="ingreso"&&c.computable)rc+=montoConcepto(c,a,w,undefined,rmv)});
+  return r2(rc);
+}
+function calcMes(w,per,periodo){
+  per=per||{};const cfg=S.config,R=regW(w),rmv=rmvPer(periodo||perSel);
+  const dias=Math.max(0,Math.min(30,per.dias===undefined||per.dias===""?30:num(per.dias)));
+  const basico=r2(num(w.sueldo)*dias/30);
+  const ingresos=[],descuentos=[];
+  (w.conceptos||[]).forEach(a=>{
+    const c=S.conceptos.find(x=>x.id===a.id);if(!c)return;
+    const ov=per.conceptos?per.conceptos[c.id]:undefined;
+    const m=montoConcepto(c,a,w,ov,rmv); if(!m)return;
+    (c.tipo==="ingreso"?ingresos:descuentos).push({c,m});
+  });
+  (per.extras||[]).forEach(x=>{
+    const m=r2(num(x.monto)); if(!m)return;
+    const c={id:"X",nombre:x.nombre||"Eventual",tipo:x.tipo,afectoEssalud:!!x.afecto,afectoPension:!!x.afecto,computable:false};
+    (x.tipo==="ingreso"?ingresos:descuentos).push({c,m});
+  });
+  const sum=(arr,f)=>r2(arr.filter(f||(()=>true)).reduce((s,x)=>s+x.m,0));
+  const totalIng=r2(basico+sum(ingresos));
+  const baseSalud=r2(basico+sum(ingresos,x=>x.c.afectoEssalud));
+  const basePen=r2(basico+sum(ingresos,x=>x.c.afectoPension));
+  // Pensiones
+  let onp=0,afpAp=0,afpPr=0,afpCo=0,afpN="";
+  if(w.pension==="ONP")onp=r2(basePen*cfg.onp/100);
+  else if(w.pension==="AFP"){const A=afp(w.afpId);if(A){afpN=A.nombre;
+    afpAp=r2(basePen*num(A.aporte)/100);
+    afpPr=r2(Math.min(basePen,num(cfg.rma)||Infinity)*num(A.prima)/100);
+    // La comisión anual sobre saldo se cobra sobre el fondo acumulado, no sobre la remuneración: descuento mensual = 0
+    afpCo=w.tipoComision==="saldo"?0:r2(basePen*num(A.comision)/100);}}
+  const pension=r2(onp+afpAp+afpPr+afpCo);
+  const quinta=r2(per.quinta===undefined||per.quinta===""?num(w.quinta):num(per.quinta));
+  const otrosDesc=sum(descuentos);
+  const totalDesc=r2(pension+quinta+otrosDesc);
+  const neto=r2(totalIng-totalDesc);
+  // Aportes del empleador
+  let essalud=0,sis=0;
+  if(w.salud==="SIS"&&R.salud==="SIS_O_ESSALUD")sis=r2(num(cfg.sisAporte));
+  else essalud=r2(Math.max(baseSalud,rmv*dias/30)*cfg.essalud/100);
+  const sctr=w.sctr?r2(baseSalud*num(cfg.sctrTasa)/100):0;
+  const vida=R.vidaLey?r2(baseSalud*num(cfg.vidaLeyTasa)/100):0;
+  // Provisiones mensuales de beneficios
+  const rc=remComputable(w,rmv);
+  const provGrati=r2(rc*R.gratiFactor/6);
+  const provBonif=r2(provGrati*cfg.bonifExtra/100);
+  const provCTS=r2((rc+rc*R.gratiFactor/6)*R.ctsFactor/12);
+  const provVac=r2(rc*R.vacDias/30/12);
+  const costo=r2(totalIng+essalud+sis+sctr+vida+provGrati+provBonif+provCTS+provVac);
+  return{rmv,dias,basico,ingresos,descuentos,totalIng,baseSalud,basePen,onp,afpAp,afpPr,afpCo,afpN,pension,quinta,otrosDesc,totalDesc,neto,essalud,sis,sctr,vida,rc,provGrati,provBonif,provCTS,provVac,costo,R};
+}
+
+/* =========================================================
+   NAVEGACIÓN
+   ========================================================= */
+const TABS=[
+  ["empresas","Empresas"],["trabajadores","Trabajadores"],["planilla","Planilla mensual"],["beneficios","Beneficios sociales"],
+  ["conceptos","Conceptos"],["afp","AFP / ONP"],["regimenes","Regímenes"],["parametros","Parámetros"]
+];
+TABS.push(["cuenta","Mi cuenta"]);
+const REP_TABS=["trabajadores","planilla","beneficios","cuenta"];
+const tabsRol=()=>isAdmin()?TABS:TABS.filter(t=>REP_TABS.includes(t[0]));
+let tab=(location.hash||"").slice(1); if(!TABS.find(t=>t[0]===tab))tab="trabajadores";
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(ROLE&&tabsRol().find(t=>t[0]===h)){tab=h;render()}});
+function go(t){if(!tabsRol().find(x=>x[0]===t))return;tab=t;try{location.hash=t}catch(e){};render()}
+function renderNav(){$("#nav").innerHTML=tabsRol().filter(t=>t[0]!=="cuenta").map(([k,l])=>`<button class="${k===tab?"on":""}" onclick="go('${k}')">${l}</button>`).join("")}
+function renderHdr(){
+  const r=rmvAt(),nx=S.config.rmvHist.filter(h=>h.desde>isoD(new Date())).sort((a,b)=>a.desde.localeCompare(b.desde))[0];
+  $("#hdr").innerHTML=`<label style="flex-direction:row;align-items:center;gap:6px">Empresa<select onchange="setEmp(this.value)">${S.empresas.length?S.empresas.map(e=>`<option value="${e.id}" ${e.id===empSel?"selected":""}>${esc(e.razon)}${e.ruc?" – "+esc(e.ruc):""}</option>`).join(""):`<option>— Crea una empresa —</option>`}</select></label>
+  <button class="pill" title="Editar RMV" onclick="go('parametros')">RMV ${S_(r)}${nx?` → ${S_(nx.monto)} desde ${nx.desde}`:""}</button>`;
+}
+function needEmp(){if(S.empresas.length&&emp(empSel))return false;$("#main").innerHTML=`<div class="card"><div class="empty">${isAdmin()?`Primero crea una empresa (RUC, razón social y régimen laboral).<br><br><button class="btn pri" onclick="go('empresas');formEmp()">+ Nueva empresa</button>`:"No se encontró la información de tu empresa. Comunícate con el administrador."}</div></div>`;return true}
+function render(){renderNav();renderHdr();if(!tabsRol().find(t=>t[0]===tab))tab=tabsRol()[0][0];if(["trabajadores","planilla","beneficios"].includes(tab)&&needEmp())return;({cuenta:vCuenta,empresas:vEmp,trabajadores:vTrab,planilla:vPlan,beneficios:vBen,conceptos:vConc,afp:vAfp,regimenes:vReg,parametros:vPar})[tab]()}
+
+/* ---------- Diálogo ---------- */
+function openDlg(html){$("#dlg").innerHTML=html;$("#ov").classList.add("on");$("#ov").scrollTop=0}
+function closeDlg(){$("#ov").classList.remove("on")}
+$("#ov").addEventListener("mousedown",e=>{if(e.target.id==="ov")closeDlg()});
+function confirmar(msg,fn){openDlg(`<h2>Confirmar</h2><p>${esc(msg)}</p><div class="dlg-foot"><button class="btn" onclick="closeDlg()">Cancelar</button><button class="btn pri" id="okc">Sí, continuar</button></div>`);$("#okc").onclick=()=>{closeDlg();fn()}}
+
+/* =========================================================
+   VISTA: TRABAJADORES
+   ========================================================= */
+let filtroT="";
+function vTrab(){
+  const E=emp(empSel),RE=reg(E.regimenId);
+  const totalSueldos=trabEmp().filter(w=>w.activo!==false).reduce((s,w)=>s+num(w.sueldo),0);
+  $("#main").innerHTML=`
+  <div class="kpis">
+    <div class="kpi"><div class="l">Empresa · ${esc(RE.nombre)}</div><div class="v" style="font-size:15px">${esc(E.razon)}<div class="hint" style="margin:0">RUC ${esc(E.ruc)}</div></div></div>
+    <div class="kpi"><div class="l">Trabajadores activos</div><div class="v">${trabEmp().filter(w=>w.activo!==false).length}</div></div>
+    <div class="kpi"><div class="l">Suma de remuneraciones</div><div class="v">${S_(totalSueldos)}</div></div>
+    <div class="kpi"><div class="l">RMV vigente</div><div class="v">${S_(rmvAt())}</div></div>
+    <div class="kpi"><div class="l">Asignación familiar (10% RMV)</div><div class="v">${S_(rmvAt()*0.1)}</div></div>
+  </div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between"><div><h2>Trabajadores</h2><p class="hint">Registra a cada trabajador con su régimen, sistema de pensiones, banco y conceptos remunerativos.</p></div>
+    <div class="row"><input placeholder="Buscar DNI, nombre o puesto…" value="${esc(filtroT)}" oninput="filtroT=this.value;vTrabTable()" style="width:240px"><button class="btn pri adm" onclick="formTrab()">+ Nuevo trabajador</button></div></div>
+    <div id="ttab"></div>
+  </div>`;
+  vTrabTable();
+}
+function vTrabTable(){
+  const ws=trabEmp().filter(w=>!filtroT||(w.dni+" "+w.nombres+" "+w.apellidos+" "+w.puesto).toLowerCase().includes(filtroT.toLowerCase()));
+  if(!trabEmp().length){$("#ttab").innerHTML=`<div class="empty">Esta empresa aún no tiene trabajadores. Pulsa <b>+ Nuevo trabajador</b> para empezar.</div>`;return}
+  $("#ttab").innerHTML=`<div class="scroll"><table><thead><tr><th>DNI</th><th>Apellidos y nombres</th><th>Puesto</th><th>Régimen</th><th>Pensión</th><th>Salud</th><th class="n">Remuneración</th><th>Banco / Cuenta</th><th>Estado</th><th class="adm"></th></tr></thead><tbody>
+  ${ws.map(w=>{const A=afp(w.afpId);return`<tr>
+    <td>${esc(w.dni)}</td><td><b>${esc(nombreT(w))}</b><div class="hint" style="margin:0">${esc(w.correo||"")} ${w.telefono?"· "+esc(w.telefono):""}</div></td>
+    <td>${esc(w.puesto)}</td><td><span class="tag">${esc(regW(w).nombre)}</span></td>
+    <td>${w.pension==="AFP"?esc(A?A.nombre:"AFP")+` <span class="hint">(${w.tipoComision==="saldo"?"saldo":"flujo"})</span>`:esc(w.pension||"—")}</td>
+    <td>${w.salud==="SIS"?"SIS":"EsSalud"}${w.sctr?' <span class="tag warn">SCTR</span>':""}</td>
+    <td class="n">${S_(w.sueldo)}${num(w.sueldo)<rmvAt()?' <span class="tag bad" title="Menor a la RMV">&lt; RMV</span>':""}</td>
+    <td>${esc(w.banco||"")}<div class="hint" style="margin:0">${esc(w.cuenta||"")}${w.cci?" · CCI "+esc(w.cci):""}</div></td>
+    <td>${w.activo===false?'<span class="tag bad">Cesado</span>':'<span class="tag ok">Activo</span>'}</td>
+    <td style="white-space:nowrap" class="adm"><button class="btn sm" onclick="formTrab('${w.id}')">Editar</button> <button class="btn sm bad" onclick="delTrab('${w.id}')">Eliminar</button></td></tr>`}).join("")}
+  </tbody></table></div>`;
+}
+function delTrab(id){const w=S.trabajadores.find(x=>x.id===id);confirmar(`¿Eliminar a ${nombreT(w)}? Esta acción no se puede deshacer.`,()=>{S.trabajadores=S.trabajadores.filter(x=>x.id!==id);dbDel("trabajadores","id",id);render();toast("Trabajador eliminado")})}
+function formTrab(id){
+  const w=id?clone(S.trabajadores.find(x=>x.id===id)):{id:"",dni:"",nombres:"",apellidos:"",direccion:"",correo:"",telefono:"",puesto:"",empresaId:empSel,fechaIngreso:isoD(new Date()),fechaCese:"",sueldo:rmvAt(),banco:"",cuenta:"",cci:"",pension:"ONP",afpId:S.afps[0]?.id||"",cuspp:"",tipoComision:"flujo",salud:"ESSALUD",sctr:false,quinta:0,conceptos:[],activo:true};
+  const has=cid=>(w.conceptos||[]).find(a=>a.id===cid);
+  openDlg(`<h2>${id?"Editar":"Nuevo"} trabajador</h2>
+  <form id="ft" onsubmit="event.preventDefault();saveTrab('${id||""}')">
+  <fieldset><legend>Datos personales</legend><div class="grid">
+    <label>DNI *<input name="dni" maxlength="12" value="${esc(w.dni)}" required></label>
+    <label>Nombres *<input name="nombres" value="${esc(w.nombres)}" required></label>
+    <label>Apellidos *<input name="apellidos" value="${esc(w.apellidos)}" required></label>
+    <label>Dirección<input name="direccion" value="${esc(w.direccion)}"></label>
+    <label>Correo<input name="correo" type="email" value="${esc(w.correo)}"></label>
+    <label>Teléfono<input name="telefono" value="${esc(w.telefono)}"></label>
+  </div></fieldset>
+  <fieldset><legend>Datos laborales</legend><div class="grid">
+    <label>Puesto *<input name="puesto" value="${esc(w.puesto)}" required></label>
+    <label>Empresa<select name="empresaId" onchange="onRegChange()">${S.empresas.map(e=>`<option value="${e.id}" ${e.id===w.empresaId?"selected":""}>${esc(e.razon)} – ${esc(e.ruc)}</option>`).join("")}</select><span id="regtxt" class="hint" style="margin:0"></span></label>
+    <label>Fecha de ingreso<input type="date" name="fechaIngreso" value="${esc(w.fechaIngreso)}"></label>
+    <label>Fecha de cese (si aplica)<input type="date" name="fechaCese" value="${esc(w.fechaCese||"")}"></label>
+    <label>Remuneración mensual (S/) *<input name="sueldo" type="number" step="0.01" min="0" value="${w.sueldo}" required oninput="chkRmv(this)"><span class="err" id="rmvw"></span></label>
+    <label>Retención 5ta categoría mensual (S/)<input name="quinta" type="number" step="0.01" min="0" value="${w.quinta||0}"></label>
+    <label class="chk"><input type="checkbox" name="activo" ${w.activo!==false?"checked":""}> Activo</label>
+  </div></fieldset>
+  <fieldset><legend>Pago</legend><div class="grid">
+    <label>Banco<select name="banco"><option value="">— Seleccionar —</option>${BANCOS.map(b=>`<option ${b===w.banco?"selected":""}>${b}</option>`).join("")}</select></label>
+    <label>N° de cuenta<input name="cuenta" value="${esc(w.cuenta)}"></label>
+    <label>CCI (20 dígitos)<input name="cci" maxlength="20" value="${esc(w.cci)}"></label>
+  </div></fieldset>
+  <fieldset><legend>Seguridad social</legend><div class="grid">
+    <label>Sistema de pensiones<select name="pension" onchange="onPenChange()"><option value="ONP" ${w.pension==="ONP"?"selected":""}>ONP (${S.config.onp}%)</option><option value="AFP" ${w.pension==="AFP"?"selected":""}>AFP</option><option value="NINGUNO" ${w.pension==="NINGUNO"?"selected":""}>Sin sistema (pensionista/exonerado)</option></select></label>
+    <label class="afpf">AFP<select name="afpId">${S.afps.map(a=>`<option value="${a.id}" ${a.id===w.afpId?"selected":""}>${esc(a.nombre)}</option>`).join("")}</select></label>
+    <label class="afpf">Tipo de comisión<select name="tipoComision"><option value="flujo" ${w.tipoComision!=="saldo"?"selected":""}>Comisión sobre flujo (se descuenta de la remuneración)</option><option value="saldo" ${w.tipoComision==="saldo"?"selected":""}>Comisión anual sobre saldo (no se descuenta de la remuneración)</option></select></label>
+    <label class="afpf">CUSPP<input name="cuspp" value="${esc(w.cuspp||"")}"></label>
+    <label>Seguro de salud<select name="salud"><option value="ESSALUD" ${w.salud!=="SIS"?"selected":""}>EsSalud (${S.config.essalud}%)</option><option value="SIS" ${w.salud==="SIS"?"selected":""}>SIS (solo microempresa)</option></select></label>
+    <label class="chk"><input type="checkbox" name="sctr" ${w.sctr?"checked":""}> Actividad de alto riesgo (SCTR)</label>
+  </div></fieldset>
+  <fieldset><legend>Conceptos asignados</legend>
+    <p class="hint">Marca los conceptos que percibe o se le descuentan cada mes. Para conceptos de monto fijo puedes indicar un monto específico para este trabajador.</p>
+    <table><thead><tr><th></th><th>Concepto</th><th>Tipo</th><th>Cálculo</th><th>Afecto EsSalud</th><th>Afecto pensión</th><th>Computable beneficios</th><th class="n">Monto para este trabajador</th></tr></thead><tbody>
+    ${S.conceptos.map(c=>{const a=has(c.id);return`<tr>
+      <td><input type="checkbox" class="cc" data-id="${c.id}" ${a?"checked":""}></td><td>${esc(c.nombre)}</td>
+      <td>${c.tipo==="ingreso"?'<span class="tag ok">Ingreso</span>':'<span class="tag bad">Descuento</span>'}</td>
+      <td>${descModo(c)}</td><td>${c.afectoEssalud?"Sí":"No"}</td><td>${c.afectoPension?"Sí":"No"}</td><td>${c.computable?"Sí":"No"}</td>
+      <td class="n">${c.modo==="fijo"?`<input type="number" step="0.01" class="cm" data-id="${c.id}" style="width:110px" value="${a&&a.monto!==undefined?a.monto:c.valor}">`:`<span class="hint">${S_(montoConcepto(c,a,w))}</span>`}</td></tr>`}).join("")}
+    </tbody></table>
+  </fieldset>
+  <div id="ferr" class="err"></div>
+  <div class="dlg-foot"><button type="button" class="btn" onclick="closeDlg()">Cancelar</button><button class="btn pri">Guardar trabajador</button></div>
+  </form>`);
+  onPenChange();onRegChange();chkRmv($("#ft").sueldo);
+}
+function descModo(c){return c.modo==="porc_rmv"?`${c.valor}% de la RMV`:c.modo==="porc_sueldo"?`${c.valor}% del sueldo`:`Monto fijo (${S_(c.valor)})`}
+function chkRmv(el){$("#rmvw").textContent=num(el.value)<rmvAt()?`Atención: es menor a la RMV (${S_(rmvAt())}). Solo válido para jornada parcial.`:""}
+function onPenChange(){const f=$("#ft");const on=f.pension.value==="AFP";f.querySelectorAll(".afpf").forEach(e=>e.style.display=on?"":"none")}
+function onRegChange(){const f=$("#ft");const R=reg(emp(f.empresaId.value).regimenId);$("#regtxt").textContent="Régimen: "+R.nombre;const sisOpt=f.salud.querySelector('option[value=SIS]');sisOpt.disabled=R.salud!=="SIS_O_ESSALUD";if(sisOpt.disabled&&f.salud.value==="SIS")f.salud.value="ESSALUD"}
+function saveTrab(id){
+  const f=$("#ft"),g=n=>f[n].value.trim();
+  const w={id:id||uid(),dni:g("dni"),nombres:g("nombres"),apellidos:g("apellidos"),direccion:g("direccion"),correo:g("correo"),telefono:g("telefono"),puesto:g("puesto"),
+    empresaId:g("empresaId"),fechaIngreso:g("fechaIngreso"),fechaCese:g("fechaCese"),sueldo:r2(num(g("sueldo"))),quinta:r2(num(g("quinta"))),activo:f.activo.checked,
+    banco:g("banco"),cuenta:g("cuenta"),cci:g("cci"),pension:g("pension"),afpId:g("afpId"),tipoComision:g("tipoComision"),cuspp:g("cuspp"),salud:g("salud"),sctr:f.sctr.checked,conceptos:[]};
+  f.querySelectorAll(".cc:checked").forEach(cb=>{const cid=cb.dataset.id;const mi=f.querySelector(`.cm[data-id="${cid}"]`);const a={id:cid};if(mi)a.monto=r2(num(mi.value));w.conceptos.push(a)});
+  const errs=[];
+  if(!/^\d{8}$/.test(w.dni))errs.push("El DNI debe tener 8 dígitos (si es carné de extranjería, ignora este aviso y vuelve a guardar).");
+  if(w.cci&&!/^\d{20}$/.test(w.cci))errs.push("El CCI debe tener 20 dígitos.");
+  if(S.trabajadores.find(x=>x.dni===w.dni&&x.id!==w.id&&x.empresaId===w.empresaId))errs.push("Ya existe un trabajador con ese DNI en esta empresa.");
+  const fe=$("#ferr");
+  const hard=errs.filter(e=>!e.startsWith("El DNI"));
+  if(hard.length||(errs.length&&fe.dataset.w!==w.dni)){fe.innerHTML=errs.map(esc).join("<br>");fe.dataset.w=w.dni;if(hard.length)fe.dataset.w="";return}
+  const i=S.trabajadores.findIndex(x=>x.id===w.id); if(i>=0)S.trabajadores[i]=w; else S.trabajadores.push(w);
+  S.trabajadores.sort((a,b)=>nombreT(a).localeCompare(nombreT(b)));
+  persist("trabajadores",w);closeDlg();if(w.empresaId!==empSel)setEmp(w.empresaId);else render();toast("Trabajador guardado");
+}
+
+/* =========================================================
+   VISTA: PLANILLA MENSUAL
+   ========================================================= */
+const hoy=new Date();
+let perSel=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,"0")}`;
+function perData(wid){return(S.periodos[perSel]||{})[wid]||{}}
+function trabajadoresDelPeriodo(){
+  const[y,m]=perSel.split("-").map(Number);const ini=new Date(y,m-1,1),fin=new Date(y,m-1,lastDay(y,m-1));
+  return trabEmp().filter(w=>{const fi=parseD(w.fechaIngreso),fc=parseD(w.fechaCese);if(fi&&fi>fin)return false;if(fc&&fc<ini)return false;return w.activo!==false||(fc&&fc>=ini)});
+}
+function vPlan(){
+  const ws=trabajadoresDelPeriodo();const rows=ws.map(w=>({w,c:calcMes(w,perData(w.id))}));
+  const T=k=>r2(rows.reduce((s,r)=>s+r.c[k],0));
+  const[y,m]=perSel.split("-").map(Number);
+  $("#main").innerHTML=`
+  <div class="card"><div class="row" style="justify-content:space-between">
+    <div><h2>Planilla de ${MESES[m-1]} ${y} – ${esc(emp(empSel).razon)}</h2><p class="hint" style="margin:0">RUC ${esc(emp(empSel).ruc)} · ${esc(reg(emp(empSel).regimenId).nombre)} · RMV del periodo: <b>${S_(rmvPer(perSel))}</b></p><p class="hint adm">Haz clic en <b>Ajustar</b> para cambiar días laborados, 5ta categoría o montos del mes (horas extra, bonos, adelantos, etc.).</p></div>
+    <div class="row"><label>Periodo<input type="month" value="${perSel}" onchange="perSel=this.value;vPlan()"></label>
+    <button class="btn pri" onclick="pdfTodas()">Boletas en PDF (todas)</button><button class="btn" onclick="exportPlanilla()">Exportar a Excel (CSV)</button><button class="btn" onclick="exportBanco()">Archivo de pagos</button></div></div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="l">Total ingresos</div><div class="v">${S_(T("totalIng"))}</div></div>
+    <div class="kpi"><div class="l">Total descuentos</div><div class="v">${S_(T("totalDesc"))}</div></div>
+    <div class="kpi"><div class="l">Neto a pagar</div><div class="v">${S_(T("neto"))}</div></div>
+    <div class="kpi"><div class="l">EsSalud + SIS (empleador)</div><div class="v">${S_(T("essalud")+T("sis"))}</div></div>
+    <div class="kpi"><div class="l">Provisión beneficios</div><div class="v">${S_(T("provGrati")+T("provBonif")+T("provCTS")+T("provVac"))}</div></div>
+    <div class="kpi"><div class="l">Costo laboral total</div><div class="v">${S_(T("costo"))}</div></div>
+  </div>
+  <div class="card">${!rows.length?`<div class="empty">No hay trabajadores activos en este periodo.</div>`:`
+  <div class="scroll"><table><thead><tr>
+    <th>Trabajador</th><th>Régimen</th><th class="n">Días</th><th class="n">Básico</th><th class="n">Otros ingresos</th><th class="n">Total ingresos</th>
+    <th class="n">ONP</th><th class="n">AFP aporte</th><th class="n">AFP prima</th><th class="n">AFP comisión</th><th class="n">5ta cat.</th><th class="n">Otros desc.</th><th class="n">Total desc.</th>
+    <th class="n">NETO</th><th class="n">EsSalud</th><th class="n">SIS</th><th class="n">SCTR+V.Ley</th><th class="n">Prov. Grati+Bonif</th><th class="n">Prov. CTS</th><th class="n">Prov. Vacac.</th><th></th></tr></thead><tbody>
+  ${rows.map(({w,c})=>`<tr><td><b>${esc(nombreT(w))}</b><div class="hint" style="margin:0">${esc(w.dni)} · ${esc(w.puesto)}</div></td><td><span class="tag">${esc(c.R.id)}</span></td>
+    <td class="n">${c.dias}</td><td class="n">${fmt(c.basico)}</td><td class="n">${fmt(c.totalIng-c.basico)}</td><td class="n"><b>${fmt(c.totalIng)}</b></td>
+    <td class="n">${fmt(c.onp)}</td><td class="n">${fmt(c.afpAp)}</td><td class="n">${fmt(c.afpPr)}</td><td class="n">${fmt(c.afpCo)}</td><td class="n">${fmt(c.quinta)}</td><td class="n">${fmt(c.otrosDesc)}</td><td class="n">${fmt(c.totalDesc)}</td>
+    <td class="n"><b>${fmt(c.neto)}</b></td><td class="n">${fmt(c.essalud)}</td><td class="n">${fmt(c.sis)}</td><td class="n">${fmt(c.sctr+c.vida)}</td><td class="n">${fmt(c.provGrati+c.provBonif)}</td><td class="n">${fmt(c.provCTS)}</td><td class="n">${fmt(c.provVac)}</td>
+    <td style="white-space:nowrap"><button class="btn sm adm" onclick="ajustar('${w.id}')">Ajustar</button> <button class="btn sm" onclick="boleta('${w.id}')">Ver boleta</button> <button class="btn sm" onclick="pdfUno('${w.id}')">PDF</button></td></tr>`).join("")}
+  </tbody><tfoot><tr><td colspan="3">TOTALES (${rows.length})</td><td class="n">${fmt(T("basico"))}</td><td class="n">${fmt(T("totalIng")-T("basico"))}</td><td class="n">${fmt(T("totalIng"))}</td>
+    <td class="n">${fmt(T("onp"))}</td><td class="n">${fmt(T("afpAp"))}</td><td class="n">${fmt(T("afpPr"))}</td><td class="n">${fmt(T("afpCo"))}</td><td class="n">${fmt(T("quinta"))}</td><td class="n">${fmt(T("otrosDesc"))}</td><td class="n">${fmt(T("totalDesc"))}</td>
+    <td class="n">${fmt(T("neto"))}</td><td class="n">${fmt(T("essalud"))}</td><td class="n">${fmt(T("sis"))}</td><td class="n">${fmt(T("sctr")+T("vida"))}</td><td class="n">${fmt(T("provGrati")+T("provBonif"))}</td><td class="n">${fmt(T("provCTS"))}</td><td class="n">${fmt(T("provVac"))}</td><td></td></tr></tfoot></table></div>`}
+  </div>`;
+}
+let extrasTmp=[];
+function ajustar(wid){
+  const w=S.trabajadores.find(x=>x.id===wid),p=clone(perData(wid));extrasTmp=p.extras||[];
+  const asg=(w.conceptos||[]).map(a=>({a,c:S.conceptos.find(x=>x.id===a.id)})).filter(x=>x.c);
+  openDlg(`<h2>Ajustes del mes – ${esc(nombreT(w))}</h2>
+  <form id="fa" onsubmit="event.preventDefault();saveAjuste('${wid}')">
+  <div class="grid">
+    <label>Días laborados (de 30)<input name="dias" type="number" min="0" max="30" value="${p.dias??30}"></label>
+    <label>Retención 5ta categoría del mes (S/)<input name="quinta" type="number" step="0.01" min="0" value="${p.quinta??w.quinta??0}"></label>
+  </div>
+  ${asg.length?`<h3>Montos de conceptos este mes</h3><p class="hint">Déjalo vacío para usar el monto habitual.</p><div class="grid">${asg.map(({a,c})=>`<label>${esc(c.nombre)} <span>(habitual ${S_(montoConcepto(c,a,w,undefined,rmvPer(perSel)))})</span><input type="number" step="0.01" class="po" data-id="${c.id}" value="${p.conceptos&&p.conceptos[c.id]!==undefined?p.conceptos[c.id]:""}"></label>`).join("")}</div>`:""}
+  <h3>Ingresos / descuentos eventuales</h3><p class="hint">Ej.: horas extra, bono, comisión, adelanto, préstamo. Marca “Afecto” si debe sumar a la base de EsSalud y pensiones.</p>
+  <div id="ex"></div><button type="button" class="btn sm" onclick="extrasTmp.push({nombre:'',tipo:'ingreso',monto:0,afecto:true});drawEx()">+ Agregar</button>
+  <div class="dlg-foot"><button type="button" class="btn" onclick="closeDlg()">Cancelar</button><button class="btn pri">Guardar ajustes</button></div></form>`);
+  drawEx();
+}
+function drawEx(){$("#ex").innerHTML=extrasTmp.map((x,i)=>`<div class="row" style="margin-bottom:6px">
+  <input placeholder="Descripción" value="${esc(x.nombre)}" oninput="extrasTmp[${i}].nombre=this.value" style="flex:1">
+  <select onchange="extrasTmp[${i}].tipo=this.value"><option value="ingreso" ${x.tipo==="ingreso"?"selected":""}>Ingreso</option><option value="descuento" ${x.tipo==="descuento"?"selected":""}>Descuento</option></select>
+  <input type="number" step="0.01" value="${x.monto}" oninput="extrasTmp[${i}].monto=this.value" style="width:110px">
+  <label class="chk"><input type="checkbox" ${x.afecto?"checked":""} onchange="extrasTmp[${i}].afecto=this.checked"> Afecto</label>
+  <button type="button" class="btn sm bad" onclick="extrasTmp.splice(${i},1);drawEx()">✕</button></div>`).join("")}
+function saveAjuste(wid){
+  const f=$("#fa");const p={dias:num(f.dias.value),quinta:f.quinta.value===""?"":r2(num(f.quinta.value)),conceptos:{},extras:extrasTmp.filter(x=>x.nombre||num(x.monto)).map(x=>({...x,monto:r2(num(x.monto))}))};
+  f.querySelectorAll(".po").forEach(i=>{if(i.value!=="")p.conceptos[i.dataset.id]=r2(num(i.value))});
+  S.periodos[perSel]=S.periodos[perSel]||{};S.periodos[perSel][wid]=p;persist("periodos");closeDlg();vPlan();toast("Ajustes guardados");
+}
+function boletaHTML(w,c){
+  const[y,m]=perSel.split("-").map(Number);const E=emp(w.empresaId)||{};
+  const line=(l,v)=>`<tr><td>${esc(l)}</td><td class="n">${fmt(v)}</td></tr>`;
+  return`<div class="boleta">
+  <div class="row" style="justify-content:space-between;align-items:flex-start"><div><b>${esc(E.razon||"")}</b><br>RUC: ${esc(E.ruc||"—")}<br>${esc(E.direccion||"")}</div>
+  <div style="text-align:right"><b>BOLETA DE PAGO</b><br>Periodo: ${MESES[m-1]} ${y}<br>D.S. N° 001-98-TR</div></div><hr>
+  <div class="cols3"><div><b>Trabajador:</b> ${esc(nombreT(w))}<br><b>DNI:</b> ${esc(w.dni)}<br><b>Puesto:</b> ${esc(w.puesto)}</div>
+  <div><b>Régimen:</b> ${esc(c.R.nombre)}<br><b>Ingreso:</b> ${esc(w.fechaIngreso||"")}<br><b>Días laborados:</b> ${c.dias}</div>
+  <div><b>Pensión:</b> ${w.pension==="AFP"?esc(c.afpN)+" "+(w.cuspp?"· CUSPP "+esc(w.cuspp):""):esc(w.pension)}<br><b>Banco:</b> ${esc(w.banco||"")}<br><b>Cuenta:</b> ${esc(w.cuenta||w.cci||"")}</div></div><hr>
+  <div class="cols3">
+   <div><b>INGRESOS</b><table>${line("Remuneración básica",c.basico)}${c.ingresos.map(x=>line(x.c.nombre,x.m)).join("")}<tr><td><b>Total ingresos</b></td><td class="n"><b>${fmt(c.totalIng)}</b></td></tr></table></div>
+   <div><b>DESCUENTOS</b><table>${c.onp?line(`ONP (${S.config.onp}%)`,c.onp):""}${c.afpAp?line("AFP – Aporte obligatorio",c.afpAp):""}${c.afpPr?line("AFP – Prima de seguro",c.afpPr):""}${c.afpCo?line("AFP – Comisión",c.afpCo):""}${c.quinta?line("Renta de 5ta categoría",c.quinta):""}${c.descuentos.map(x=>line(x.c.nombre,x.m)).join("")}<tr><td><b>Total descuentos</b></td><td class="n"><b>${fmt(c.totalDesc)}</b></td></tr></table></div>
+   <div><b>APORTES DEL EMPLEADOR</b><table>${c.essalud?line(`EsSalud (${S.config.essalud}%)`,c.essalud):""}${c.sis?line("SIS",c.sis):""}${c.sctr?line("SCTR",c.sctr):""}${c.vida?line("Vida Ley",c.vida):""}</table></div>
+  </div><hr>
+  <div style="font-size:16px;text-align:right"><b>NETO A PAGAR: ${S_(c.neto)}</b></div>
+  <div class="row" style="justify-content:space-around;margin-top:50px;text-align:center"><div>_______________________<br>Empleador</div><div>_______________________<br>Trabajador</div></div></div>`;
+}
+function boleta(wid){const w=S.trabajadores.find(x=>x.id===wid),c=calcMes(w,perData(wid));
+  openDlg(boletaHTML(w,c)+`<div class="dlg-foot"><button class="btn" onclick="closeDlg()">Cerrar</button><button class="btn pri" onclick="pdfUno('${wid}')">Descargar PDF</button></div>`)}
+function csv(rows){return"﻿"+rows.map(r=>r.map(v=>{const s=typeof v==="number"?v.toFixed(2):String(v??"");return/[;"\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}).join(";")).join("\r\n")}
+async function exportPlanilla(){
+  const ws=trabajadoresDelPeriodo();
+  const head=["DNI","Apellidos y nombres","Puesto","Régimen","Pensión","Días","Básico","Otros ingresos","Total ingresos","Base EsSalud","Base pensión","ONP","AFP aporte","AFP prima","AFP comisión","5ta categoría","Otros descuentos","Total descuentos","Neto","EsSalud","SIS","SCTR","Vida Ley","Prov. gratificación","Prov. bonif. extraord.","Prov. CTS","Prov. vacaciones","Costo total"];
+  const rows=[head,...ws.map(w=>{const c=calcMes(w,perData(w.id));return[w.dni,nombreT(w),w.puesto,c.R.nombre,w.pension==="AFP"?c.afpN:w.pension,c.dias,c.basico,r2(c.totalIng-c.basico),c.totalIng,c.baseSalud,c.basePen,c.onp,c.afpAp,c.afpPr,c.afpCo,c.quinta,c.otrosDesc,c.totalDesc,c.neto,c.essalud,c.sis,c.sctr,c.vida,c.provGrati,c.provBonif,c.provCTS,c.provVac,c.costo]})];
+  await descargar(`planilla_${perSel}.csv`,csv(rows),"text/csv");
+}
+async function exportBanco(){
+  const ws=trabajadoresDelPeriodo();
+  const rows=[["DNI","Apellidos y nombres","Banco","N° cuenta","CCI","Neto a pagar"],...ws.map(w=>{const c=calcMes(w,perData(w.id));return[w.dni,nombreT(w),w.banco,w.cuenta,w.cci,c.neto]})];
+  await descargar(`pagos_${perSel}.csv`,csv(rows),"text/csv");
+}
+async function descargar(filename,data,type){
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=filename;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("Archivo descargado");
+}
+
+/* =========================================================
+   VISTA: BENEFICIOS SOCIALES
+   ========================================================= */
+let benW="",benAnio=hoy.getFullYear();
+function vBen(){
+  const TE=trabEmp();
+  if(!TE.length){$("#main").innerHTML=`<div class="card"><div class="empty">Registra trabajadores en esta empresa para calcular sus beneficios.</div></div>`;return}
+  if(!TE.find(w=>w.id===benW))benW=TE[0].id;
+  const w=TE.find(x=>x.id===benW),R=regW(w),cfg=S.config;
+  const rmvB=rmvAt(w.fechaCese||undefined);
+  const rc=remComputable(w,rmvB),rd=r2(rc/30);
+  const fi=parseD(w.fechaIngreso);
+  // ---- Gratificaciones
+  const grat=sem=>{
+    const y=benAnio,ini=new Date(y,sem?6:0,1),fin=new Date(y,sem?11:5,lastDay(y,sem?11:5));
+    let corte=parseD(w.fechaCese);if(!corte||corte>fin)corte=fin;
+    let st=ini; if(fi&&fi>ini){st=fi.getDate()===1?fi:new Date(fi.getFullYear(),fi.getMonth()+1,1)}
+    let endM=corte.getDate()===lastDay(corte.getFullYear(),corte.getMonth())?corte:new Date(corte.getFullYear(),corte.getMonth(),0);
+    let meses=Math.max(0,(endM.getFullYear()-st.getFullYear())*12+endM.getMonth()-st.getMonth()+1); if(st>endM)meses=0; meses=Math.min(6,meses);
+    const g=r2(rc*R.gratiFactor*meses/6),b=r2(g*cfg.bonifExtra/100);
+    return{meses,g,b,t:r2(g+b)};
+  };
+  const gJ=grat(0),gD=grat(1);
+  // ---- CTS
+  const cts=(nov)=>{
+    const y=benAnio; const ini=nov?new Date(y,4,1):new Date(y-1,10,1), fin=nov?new Date(y,9,31):new Date(y,3,30);
+    let st=fi&&fi>ini?fi:ini; let corte=parseD(w.fechaCese); if(!corte||corte>fin)corte=fin;
+    const t=tiempo(st,corte); const meses=Math.min(6,t.tm), dias=t.tm>=6?0:t.d;
+    const ultGrati=nov?gJ.g:(()=>{const y0=benAnio;benAnio=y0-1;const x=grat(1);benAnio=y0;return x.g})();
+    const rcCts=r2(rc+ultGrati/6);
+    const monto=r2((rcCts/12*meses+rcCts/360*dias)*R.ctsFactor);
+    return{ini,fin:corte,meses,dias,rcCts,ultGrati,monto};
+  };
+  const cM=cts(false),cN=cts(true);
+  // ---- Vacaciones
+  const hoyD=parseD(w.fechaCese)||new Date();
+  const tServ=tiempo(fi,hoyD);
+  const vacCompleta=r2(rc*R.vacDias/30);
+  const vacTruncas=r2(vacCompleta/12*tServ.m+vacCompleta/360*tServ.d);
+  // ---- Indemnización
+  const fraccion=R.indemFraccion||indemFrac;
+  let rdInd=tServ.a*R.indemRD + (fraccion?R.indemRD*tServ.m/12+R.indemRD*tServ.d/360:0);
+  const topado=rdInd>R.indemTope; rdInd=Math.min(rdInd,R.indemTope);
+  const indem=r2(rd*rdInd);
+  const card=(t,body)=>`<div class="card"><h2>${t}</h2>${body}</div>`;
+  const tb=rows=>`<table>${rows.map(([l,v,b])=>`<tr><td>${l}</td><td class="n">${b?"<b>"+v+"</b>":v}</td></tr>`).join("")}</table>`;
+  $("#main").innerHTML=`
+  <div class="card"><div class="row">
+    <label>Trabajador<select onchange="benW=this.value;vBen()">${TE.map(x=>`<option value="${x.id}" ${x.id===benW?"selected":""}>${esc(nombreT(x))}</option>`).join("")}</select></label>
+    <label>Año<input type="number" value="${benAnio}" style="width:100px" onchange="benAnio=+this.value;vBen()"></label>
+    <div><span class="tag">${esc(R.nombre)}</span> <span class="hint">Ingreso: ${esc(w.fechaIngreso||"—")} ${w.fechaCese?"· Cese: "+esc(w.fechaCese):""} · Tiempo de servicios: ${tServ.a} años, ${tServ.m} meses, ${tServ.d} días</span></div>
+  </div>
+  <p class="hint" style="margin-top:10px">Remuneración computable (sueldo + conceptos computables): <b>${S_(rc)}</b> · Remuneración diaria: <b>${S_(rd)}</b></p></div>
+  <div class="cols3">
+  ${card("Gratificaciones "+benAnio, R.gratiFactor===0?`<div class="note">El régimen ${esc(R.nombre)} no otorga gratificaciones legales.</div>`:
+    `<p class="hint">${R.gratiFactor===1?"Una remuneración":"Media remuneración"} por semestre, proporcional a meses completos + bonificación extraordinaria ${cfg.bonifExtra}% (Ley 30334).</p>`+
+    tb([["<b>Julio</b> (ene–jun) · meses completos",gJ.meses],["Gratificación",fmt(gJ.g)],[`Bonificación ${cfg.bonifExtra}%`,fmt(gJ.b)],["Total julio",S_(gJ.t),1],
+        ["<b>Diciembre</b> (jul–dic) · meses completos",gD.meses],["Gratificación",fmt(gD.g)],[`Bonificación ${cfg.bonifExtra}%`,fmt(gD.b)],["Total diciembre",S_(gD.t),1]]))}
+  ${card("CTS "+benAnio, R.ctsFactor===0?`<div class="note">El régimen ${esc(R.nombre)} no otorga CTS.</div>`:
+    `<p class="hint">${R.ctsFactor===1?"RC = sueldo computable + 1/6 de la última gratificación; CTS = RC/12 × meses + RC/360 × días.":"15 remuneraciones diarias por año (50% de la fórmula general), tope 90 RD."}</p>`+
+    tb([["<b>Depósito mayo</b> (nov "+(benAnio-1)+" – abr "+benAnio+")",""],["Tiempo computable",`${cM.meses} m, ${cM.dias} d`],["1/6 gratificación diciembre",fmt(cM.ultGrati/6)],["Remuneración computable",fmt(cM.rcCts)],["CTS mayo",S_(cM.monto),1],
+        ["<b>Depósito noviembre</b> (may – oct "+benAnio+")",""],["Tiempo computable",`${cN.meses} m, ${cN.dias} d`],["1/6 gratificación julio",fmt(cN.ultGrati/6)],["Remuneración computable",fmt(cN.rcCts)],["CTS noviembre",S_(cN.monto),1]]))}
+  ${card("Vacaciones",`<p class="hint">${R.vacDias} días calendario por cada año completo de servicios.</p>`+
+    tb([["Días de vacaciones por año",R.vacDias],["Remuneración vacacional (año completo)",S_(vacCompleta),1],[`Vacaciones truncas (${tServ.m} m, ${tServ.d} d desde último aniversario)`,S_(vacTruncas),1]]))}
+  ${card("Indemnización por despido arbitrario",`<p class="hint">${R.indemRD} remuneraciones diarias por año ${R.indemFraccion?"(fracciones por dozavos y treintavos)":"completo"}, tope ${R.indemTope} RD.</p>
+    ${R.indemFraccion?"":`<label class="chk" style="margin-bottom:8px"><input type="checkbox" ${indemFrac?"checked":""} onchange="indemFrac=this.checked;vBen()"> Incluir fracción de año (proporcional)</label>`}`+
+    tb([["Años completos",tServ.a],["Remuneraciones diarias a pagar",fmt(rdInd)+(topado?' <span class="tag warn">tope</span>':"")],["Indemnización",S_(indem),1]]))}
+  </div>
+  <div class="card"><h2>Resumen anual estimado ${benAnio}</h2>${tb([["Gratificaciones + bonificación",S_(gJ.t+gD.t)],["CTS (mayo + noviembre)",S_(cM.monto+cN.monto)],["Vacaciones (año completo)",S_(vacCompleta)],["Total beneficios",S_(gJ.t+gD.t+cM.monto+cN.monto+vacCompleta),1]])}
+  <p class="hint" style="margin-top:8px">Si el trabajador tiene fecha de cese, los cálculos se cortan a esa fecha (truncos). Los resultados son referenciales; valida casos especiales (faltas, licencias sin goce, remuneraciones variables con promedio).</p></div>`;
+}
+let indemFrac=false;
+
+/* =========================================================
+   VISTA: CONCEPTOS
+   ========================================================= */
+function vConc(){
+  $("#main").innerHTML=`<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Conceptos remunerativos y descuentos</h2>
+  <p class="hint">Define qué conceptos son computables para EsSalud, para pensiones (AFP/ONP) y para beneficios sociales (CTS, gratificaciones, vacaciones). Luego asígnalos a cada trabajador.</p></div>
+  <button class="btn pri" onclick="formConc()">+ Nuevo concepto</button></div>
+  <table><thead><tr><th>Concepto</th><th>Tipo</th><th>Cálculo</th><th>Afecto EsSalud</th><th>Afecto AFP/ONP</th><th>Computable beneficios</th><th>Asignado a</th><th></th></tr></thead><tbody>
+  ${S.conceptos.map(c=>`<tr><td><b>${esc(c.nombre)}</b>${c.sistema?' <span class="tag">predefinido</span>':""}</td>
+   <td>${c.tipo==="ingreso"?'<span class="tag ok">Ingreso</span>':'<span class="tag bad">Descuento</span>'}</td><td>${descModo(c)}${c.modo==="porc_rmv"?` = ${S_(rmvAt()*c.valor/100)}`:""}</td>
+   <td>${c.afectoEssalud?"Sí":"No"}</td><td>${c.afectoPension?"Sí":"No"}</td><td>${c.computable?"Sí":"No"}</td>
+   <td>${S.trabajadores.filter(w=>(w.conceptos||[]).some(a=>a.id===c.id)).length} trabajador(es)</td>
+   <td style="white-space:nowrap"><button class="btn sm" onclick="formConc('${c.id}')">Editar</button> ${c.sistema?"":`<button class="btn sm bad" onclick="delConc('${c.id}')">Eliminar</button>`}</td></tr>`).join("")}
+  </tbody></table>
+  <div class="note info" style="margin-top:12px">Ejemplos: <b>Computables</b> – asignación familiar, comisiones, horas extra habituales, bonificación por cargo. <b>No computables</b> – movilidad supeditada a asistencia, condición de trabajo, canasta de navidad, bonificación extraordinaria Ley 30334, gratificaciones extraordinarias.</div></div>`;
+}
+function formConc(id){
+  const c=id?S.conceptos.find(x=>x.id===id):{nombre:"",tipo:"ingreso",modo:"fijo",valor:0,afectoEssalud:true,afectoPension:true,computable:true};
+  openDlg(`<h2>${id?"Editar":"Nuevo"} concepto</h2><form id="fc" onsubmit="event.preventDefault();saveConc('${id||""}')"><div class="grid">
+   <label>Nombre<input name="nombre" value="${esc(c.nombre)}" required></label>
+   <label>Tipo<select name="tipo" onchange="onTipoC()"><option value="ingreso" ${c.tipo==="ingreso"?"selected":""}>Ingreso</option><option value="descuento" ${c.tipo==="descuento"?"selected":""}>Descuento</option></select></label>
+   <label>Forma de cálculo<select name="modo"><option value="fijo" ${c.modo==="fijo"?"selected":""}>Monto fijo (S/)</option><option value="porc_rmv" ${c.modo==="porc_rmv"?"selected":""}>% de la RMV</option><option value="porc_sueldo" ${c.modo==="porc_sueldo"?"selected":""}>% del sueldo</option></select></label>
+   <label>Valor (monto o %)<input name="valor" type="number" step="0.01" value="${c.valor}"></label></div>
+   <div class="row ing" style="margin-top:12px"><label class="chk"><input type="checkbox" name="afectoEssalud" ${c.afectoEssalud?"checked":""}> Afecto a EsSalud</label>
+   <label class="chk"><input type="checkbox" name="afectoPension" ${c.afectoPension?"checked":""}> Afecto a AFP/ONP</label>
+   <label class="chk"><input type="checkbox" name="computable" ${c.computable?"checked":""}> Computable para beneficios (CTS, gratificación, vacaciones)</label></div>
+   <div class="dlg-foot"><button type="button" class="btn" onclick="closeDlg()">Cancelar</button><button class="btn pri">Guardar</button></div></form>`);onTipoC();
+}
+function onTipoC(){const f=$("#fc");f.querySelector(".ing").style.display=f.tipo.value==="ingreso"?"":"none"}
+function saveConc(id){const f=$("#fc"),ing=f.tipo.value==="ingreso";
+  const o={nombre:f.nombre.value.trim(),tipo:f.tipo.value,modo:f.modo.value,valor:num(f.valor.value),afectoEssalud:ing&&f.afectoEssalud.checked,afectoPension:ing&&f.afectoPension.checked,computable:ing&&f.computable.checked};
+  if(id){Object.assign(S.conceptos.find(x=>x.id===id),o)}else S.conceptos.push({id:uid(),...o});
+  persist("conceptos");closeDlg();vConc();toast("Concepto guardado")}
+function delConc(id){confirmar("¿Eliminar este concepto? Se quitará de todos los trabajadores.",()=>{S.conceptos=S.conceptos.filter(c=>c.id!==id);S.trabajadores.forEach(w=>w.conceptos=(w.conceptos||[]).filter(a=>a.id!==id));persist("conceptos");persist("trabajadores");vConc()})}
+
+/* =========================================================
+   VISTA: AFP / ONP
+   ========================================================= */
+function vAfp(){
+  $("#main").innerHTML=`<div class="card"><h2>Módulo AFP</h2><p class="hint">Ingresa los porcentajes vigentes publicados por la SBS para cada AFP. Los descuentos de los trabajadores afiliados se calculan automáticamente.</p>
+  <div style="overflow-x:auto"><table><thead><tr><th>AFP</th><th class="n">Comisión sobre flujo %</th><th class="n">Comisión anual sobre saldo %<div style="font-weight:400;text-transform:none">informativa, no se descuenta</div></th><th class="n">Prima de seguros %</th><th class="n">Aporte obligatorio %</th><th class="n">Desc. mensual (flujo) %</th><th class="n">Desc. mensual (saldo) %</th><th>Afiliados</th><th></th></tr></thead><tbody>
+  ${S.afps.map((a,i)=>`<tr><td><input value="${esc(a.nombre)}" onchange="S.afps[${i}].nombre=this.value;persist('afps')"></td>
+   ${["comision","comisionSaldo","prima","aporte"].map(k=>`<td class="n"><input type="number" step="0.01" style="width:90px;text-align:right" value="${a[k]}" onchange="S.afps[${i}].${k}=num(this.value);persist('afps');vAfp()"></td>`).join("")}
+   <td class="n"><b>${fmt(num(a.comision)+num(a.prima)+num(a.aporte))}%</b></td><td class="n"><b>${fmt(num(a.prima)+num(a.aporte))}%</b></td>
+   <td>${S.trabajadores.filter(w=>w.pension==="AFP"&&w.afpId===a.id).length}</td>
+   <td><button class="btn sm bad" onclick="delAfp(${i})">Eliminar</button></td></tr>`).join("")}
+  </tbody></table></div><div style="margin-top:10px"><button class="btn" onclick="S.afps.push({id:uid(),nombre:'Nueva AFP',comision:0,comisionSaldo:0,prima:0,aporte:10});persist('afps');vAfp()">+ Agregar AFP</button></div>
+  <div class="grid" style="margin-top:16px"><label>Remuneración máxima asegurable (tope prima de seguros) S/<input type="number" step="0.01" value="${S.config.rma}" onchange="S.config.rma=num(this.value);persist('config')"></label></div>
+  <div class="note">Los valores precargados son referenciales. Verifica las tasas vigentes del mes en la web de la SBS antes de procesar la planilla.</div></div>
+  <div class="card"><h2>ONP – Sistema Nacional de Pensiones</h2><div class="grid"><label>Aporte ONP (% del sueldo)<input type="number" step="0.01" value="${S.config.onp}" onchange="S.config.onp=num(this.value);persist('config')"></label></div></div>`;
+}
+function delAfp(i){const a=S.afps[i];if(S.trabajadores.some(w=>w.pension==="AFP"&&w.afpId===a.id))return toast("No se puede eliminar: hay trabajadores afiliados");confirmar(`¿Eliminar ${a.nombre}?`,()=>{S.afps.splice(i,1);persist("afps");vAfp()})}
+
+/* =========================================================
+   VISTA: REGÍMENES
+   ========================================================= */
+function vReg(){
+  $("#main").innerHTML=`<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Regímenes laborales</h2><p class="hint">Parámetros que usa el motor de cálculo. Puedes ajustarlos o agregar nuevos regímenes.</p></div>
+   <button class="btn pri" onclick="formReg()">+ Nuevo régimen</button></div></div>
+  <div class="cols3">${S.config.regimenes.map(r=>`<div class="card"><div class="row" style="justify-content:space-between"><h2>${esc(r.nombre)}</h2><button class="btn sm" onclick="formReg('${r.id}')">Editar</button></div>
+   <p class="hint">${esc(r.notas||"")}</p>
+   <table>
+    <tr><td>Ventas anuales máx.</td><td class="n">${r.ventasUIT?r.ventasUIT+" UIT ("+S_(r.ventasUIT*S.config.uit)+")":"Sin límite"}</td></tr>
+    <tr><td>Vacaciones</td><td class="n">${r.vacDias} días</td></tr>
+    <tr><td>Gratificaciones (jul/dic)</td><td class="n">${r.gratiFactor===0?"No":r.gratiFactor===1?"1 sueldo":(r.gratiFactor*100)+"% del sueldo"}</td></tr>
+    <tr><td>CTS</td><td class="n">${r.ctsFactor===0?"No":r.ctsFactor===1?"1 RC por año":(r.ctsFactor*30)+" RD por año"}</td></tr>
+    <tr><td>Seguro de salud</td><td class="n">${r.salud==="SIS_O_ESSALUD"?"SIS o EsSalud":"EsSalud"}</td></tr>
+    <tr><td>Vida Ley / SCTR</td><td class="n">${r.vidaLey?"Sí":"No"} / ${r.sctr?"Si alto riesgo":"No"}</td></tr>
+    <tr><td>Indemnización desp. arbitrario</td><td class="n">${r.indemRD} RD/año, tope ${r.indemTope} RD</td></tr>
+    <tr><td>Empresas / trabajadores</td><td class="n">${S.empresas.filter(e=>e.regimenId===r.id).length} / ${S.trabajadores.filter(w=>regW(w).id===r.id).length}</td></tr>
+   </table></div>`).join("")}</div>`;
+}
+function formReg(id){
+  const r=id?S.config.regimenes.find(x=>x.id===id):{id:"",nombre:"",ventasUIT:"",vacDias:30,gratiFactor:1,ctsFactor:1,indemRD:45,indemTope:360,indemFraccion:true,salud:"ESSALUD",vidaLey:true,sctr:true,notas:""};
+  openDlg(`<h2>${id?"Editar":"Nuevo"} régimen</h2><form id="fr" onsubmit="event.preventDefault();saveReg('${id||""}')"><div class="grid">
+   <label>Nombre<input name="nombre" value="${esc(r.nombre)}" required></label>
+   <label>Código<input name="id" value="${esc(r.id)}" ${id?"disabled":""} required placeholder="Ej. AGRARIO"></label>
+   <label>Ventas anuales máx. (UIT, vacío = sin límite)<input name="ventasUIT" type="number" value="${r.ventasUIT??""}"></label>
+   <label>Días de vacaciones<input name="vacDias" type="number" value="${r.vacDias}"></label>
+   <label>Gratificación (factor del sueldo: 0, 0.5, 1)<input name="gratiFactor" type="number" step="0.01" value="${r.gratiFactor}"></label>
+   <label>CTS (factor: 0, 0.5, 1)<input name="ctsFactor" type="number" step="0.01" value="${r.ctsFactor}"></label>
+   <label>Indemnización (RD por año)<input name="indemRD" type="number" step="0.01" value="${r.indemRD}"></label>
+   <label>Tope indemnización (RD)<input name="indemTope" type="number" value="${r.indemTope}"></label>
+   <label>Seguro de salud<select name="salud"><option value="ESSALUD" ${r.salud==="ESSALUD"?"selected":""}>Solo EsSalud</option><option value="SIS_O_ESSALUD" ${r.salud==="SIS_O_ESSALUD"?"selected":""}>SIS o EsSalud</option></select></label>
+   </div><div class="row" style="margin-top:12px"><label class="chk"><input type="checkbox" name="indemFraccion" ${r.indemFraccion?"checked":""}> Indemnización incluye fracciones de año</label>
+   <label class="chk"><input type="checkbox" name="vidaLey" ${r.vidaLey?"checked":""}> Seguro Vida Ley</label><label class="chk"><input type="checkbox" name="sctr" ${r.sctr?"checked":""}> SCTR (alto riesgo)</label></div>
+   <label style="margin-top:12px">Notas / derechos<textarea name="notas" rows="3">${esc(r.notas||"")}</textarea></label>
+   <div class="dlg-foot">${id&&!["MICRO","PEQUENA","DL728"].includes(id)?`<button type="button" class="btn bad" onclick="delReg('${id}')" style="margin-right:auto">Eliminar</button>`:""}<button type="button" class="btn" onclick="closeDlg()">Cancelar</button><button class="btn pri">Guardar</button></div></form>`);
+}
+function saveReg(id){const f=$("#fr");
+  const o={nombre:f.nombre.value.trim(),ventasUIT:f.ventasUIT.value===""?null:num(f.ventasUIT.value),vacDias:num(f.vacDias.value),gratiFactor:num(f.gratiFactor.value),ctsFactor:num(f.ctsFactor.value),indemRD:num(f.indemRD.value),indemTope:num(f.indemTope.value),indemFraccion:f.indemFraccion.checked,salud:f.salud.value,vidaLey:f.vidaLey.checked,sctr:f.sctr.checked,notas:f.notas.value};
+  if(id)Object.assign(S.config.regimenes.find(x=>x.id===id),o);
+  else{const nid=f.id.value.trim().toUpperCase().replace(/[^A-Z0-9_]/g,"");if(!nid||S.config.regimenes.find(x=>x.id===nid))return toast("Código vacío o repetido");S.config.regimenes.push({id:nid,...o})}
+  persist("config");closeDlg();vReg();toast("Régimen guardado")}
+function delReg(id){if(S.empresas.some(e=>e.regimenId===id))return toast("Hay empresas en este régimen");S.config.regimenes=S.config.regimenes.filter(r=>r.id!==id);persist("config");closeDlg();vReg()}
+
+/* =========================================================
+   VISTA: PARÁMETROS
+   ========================================================= */
+function vPar(){
+  const c=S.config,hoyS=isoD(new Date()),act=rmvAt();
+  const inp=(l,k,step="0.01")=>`<label>${l}<input type="number" step="${step}" value="${c[k]}" onchange="S.config.${k}=num(this.value);persist('config');renderHdr()"></label>`;
+  const H=[...c.rmvHist].map((h,i)=>({...h,i})).sort((a,b)=>b.desde.localeCompare(a.desde));
+  const vig=H.find(h=>h.desde<=hoyS);
+  $("#main").innerHTML=`<div class="card"><h2>Remuneración Mínima Vital (RMV)</h2>
+   <p class="hint">Registra cada RMV con su fecha de vigencia. La planilla de cada mes usa automáticamente la RMV vigente en ese periodo (asignación familiar, base mínima de EsSalud, alertas de sueldo mínimo). Puedes registrar desde ya un aumento futuro.</p>
+   <div class="kpis" style="margin-bottom:12px"><div class="kpi"><div class="l">RMV vigente hoy</div><div class="v">${S_(act)}</div></div><div class="kpi"><div class="l">Asignación familiar (10%)</div><div class="v">${S_(act*0.1)}</div></div><div class="kpi"><div class="l">EsSalud mínimo (${c.essalud}%)</div><div class="v">${S_(act*c.essalud/100)}</div></div></div>
+   <table style="max-width:640px"><thead><tr><th>Vigente desde</th><th class="n">Monto (S/)</th><th>Estado</th><th></th></tr></thead><tbody>
+   ${H.map(h=>`<tr><td><input type="date" value="${h.desde}" onchange="setRmv(${h.i},'desde',this.value)"></td>
+     <td class="n"><input type="number" step="0.01" style="width:120px;text-align:right" value="${h.monto}" onchange="setRmv(${h.i},'monto',num(this.value))"></td>
+     <td>${h.desde>hoyS?'<span class="tag warn">Programada</span>':h===vig?'<span class="tag ok">Vigente</span>':'<span class="tag">Histórica</span>'}</td>
+     <td>${c.rmvHist.length>1?`<button class="btn sm bad" onclick="S.config.rmvHist.splice(${h.i},1);persist('config');vPar();renderHdr()">Eliminar</button>`:""}</td></tr>`).join("")}
+   </tbody></table>
+   <div class="row" style="margin-top:10px"><label>Nueva RMV desde<input type="date" id="nrd"></label><label>Monto (S/)<input type="number" step="0.01" id="nrm" style="width:120px"></label><button class="btn pri" onclick="addRmv()">+ Agregar RMV</button></div></div>
+  <div class="card"><h2>Otros parámetros legales</h2><p class="hint">Actualízalos cuando cambien por norma. Todos los cálculos se recalculan automáticamente.</p><div class="grid">
+   ${inp("UIT (S/)","uit")}
+   ${inp("EsSalud (% de la remuneración computable)","essalud")}
+   ${inp("ONP (%)","onp")}
+   ${inp("Aporte empleador SIS microempresa (S/ mensual)","sisAporte")}
+   ${inp("Bonificación extraordinaria Ley 30334 (%)","bonifExtra")}
+   ${inp("Tasa Vida Ley (% aprox. según póliza)","vidaLeyTasa","0.001")}
+   ${inp("Tasa SCTR (% aprox. según póliza)","sctrTasa","0.001")}
+  </div></div>
+  <div class="card"><h2>Respaldo de datos</h2><p class="hint">Los datos se guardan automáticamente en tu base de datos de Supabase. Descarga un respaldo periódicamente. Con <b>Restaurar respaldo</b> puedes importar el archivo descargado desde la versión anterior de la app.</p>
+   <div class="row"><button class="btn" onclick="descargar('respaldo_planillas.json',JSON.stringify(S,null,1),'application/json')">Descargar respaldo</button>
+   <label class="btn" style="flex-direction:row">Restaurar / importar respaldo<input type="file" accept=".json" style="display:none" onchange="restaurar(this.files[0])"></label>
+   <button class="btn bad" onclick="confirmar('¿Restablecer parámetros, AFP, regímenes y conceptos a los valores por defecto? (empresas y trabajadores se conservan)',()=>{S.config=clone(DEF.config);S.afps=clone(DEF.afps);S.conceptos=clone(DEF.conceptos);saveAll();render()})">Restablecer valores por defecto</button></div></div>`;
+}
+function setRmv(i,k,v){if(k==="desde"&&!v)return vPar();if(k==="monto"&&!(v>0))return toast("Monto no válido");S.config.rmvHist[i][k]=v;S.config.rmvHist.sort((a,b)=>a.desde.localeCompare(b.desde));persist("config");vPar();renderHdr();toast("RMV actualizada")}
+function addRmv(){const d=$("#nrd").value,m=num($("#nrm").value);if(!d||!(m>0))return toast("Indica fecha y monto");
+  const ex=S.config.rmvHist.find(h=>h.desde===d);if(ex)ex.monto=m;else S.config.rmvHist.push({desde:d,monto:m});
+  S.config.rmvHist.sort((a,b)=>a.desde.localeCompare(b.desde));persist("config");vPar();renderHdr();toast("RMV registrada")}
+
+/* =========================================================
+   VISTA: EMPRESAS
+   ========================================================= */
+function vEmp(){
+  $("#main").innerHTML=`<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Empresas</h2><p class="hint">Cada empresa tiene su RUC (único), razón social y régimen laboral. Sus trabajadores, planillas y beneficios se manejan por separado; cambia de empresa con el selector de la parte superior. Con <b>Crear acceso</b> le das al representante legal una contraseña para que ingrese con el RUC (solo lectura).</p></div>
+   <button class="btn pri" onclick="formEmp()">+ Nueva empresa</button></div>
+   ${!S.empresas.length?`<div class="empty">Aún no hay empresas registradas.</div>`:`<table><thead><tr><th>RUC</th><th>Razón social</th><th>Dirección</th><th>Régimen laboral</th><th class="n">Trabajadores</th><th>Acceso rep. legal</th><th></th></tr></thead><tbody>
+   ${S.empresas.map(e=>`<tr ${e.id===empSel?'style="background:var(--pri-soft)"':""}><td><b>${esc(e.ruc)}</b></td><td>${esc(e.razon)}</td><td>${esc(e.direccion||"")}</td><td><span class="tag">${esc(reg(e.regimenId).nombre)}</span></td>
+    <td class="n">${S.trabajadores.filter(w=>w.empresaId===e.id&&w.activo!==false).length}</td>
+    <td>${REPS.has(e.id)?'<span class="tag ok">Activo</span>':'<span class="tag warn">Sin acceso</span>'} <button class="btn sm" onclick="formAcceso('${e.id}')">${REPS.has(e.id)?"Cambiar contraseña":"Crear acceso"}</button></td>
+    <td style="white-space:nowrap">${e.id===empSel?'<span class="tag ok">Seleccionada</span>':`<button class="btn sm" onclick="setEmp('${e.id}')">Seleccionar</button>`} <button class="btn sm" onclick="formEmp('${e.id}')">Editar</button> <button class="btn sm bad" onclick="delEmp('${e.id}')">Eliminar</button></td></tr>`).join("")}
+   </tbody></table>`}</div>`;
+}
+function formEmp(id){
+  const e=id?emp(id):{ruc:"",razon:"",direccion:"",regimenId:S.config.regimenes[0].id};
+  openDlg(`<h2>${id?"Editar":"Nueva"} empresa</h2><form id="fe" onsubmit="event.preventDefault();saveEmp('${id||""}')"><div class="grid">
+   <label>RUC (11 dígitos) *<input name="ruc" maxlength="11" inputmode="numeric" value="${esc(e.ruc)}" required></label>
+   <label>Razón social *<input name="razon" value="${esc(e.razon)}" required></label>
+   <label>Dirección fiscal<input name="direccion" value="${esc(e.direccion||"")}"></label>
+   <label>Régimen laboral *<select name="regimenId">${S.config.regimenes.map(r=>`<option value="${r.id}" ${r.id===e.regimenId?"selected":""}>${esc(r.nombre)}${r.ventasUIT?` (ventas ≤ ${r.ventasUIT} UIT)`:""}</option>`).join("")}</select></label>
+   </div>${id&&S.trabajadores.some(w=>w.empresaId===id)?`<div class="note">Si cambias el régimen, la planilla y los beneficios de todos sus trabajadores se recalcularán con el nuevo régimen.</div>`:""}
+   <div id="eerr" class="err"></div>
+   <div class="dlg-foot"><button type="button" class="btn" onclick="closeDlg()">Cancelar</button><button class="btn pri">Guardar empresa</button></div></form>`);
+}
+function saveEmp(id){const f=$("#fe");
+  const o={ruc:f.ruc.value.trim(),razon:f.razon.value.trim(),direccion:f.direccion.value.trim(),regimenId:f.regimenId.value};
+  const err=[];
+  if(!/^(10|15|16|17|20)\d{9}$/.test(o.ruc))err.push("El RUC debe tener 11 dígitos y empezar con 10, 15, 16, 17 o 20.");
+  if(S.empresas.some(e=>e.ruc===o.ruc&&e.id!==id))err.push("Ya existe una empresa registrada con ese RUC.");
+  if(!o.razon)err.push("Ingresa la razón social.");
+  if(err.length){$("#eerr").innerHTML=err.map(esc).join("<br>");return}
+  if(id)Object.assign(emp(id),o);else{const e={id:uid(),...o};S.empresas.push(e);empSel=e.id;try{localStorage.setItem(LS+"-emp",e.id)}catch(x){}}
+  persist("empresas");closeDlg();render();toast("Empresa guardada")}
+function delEmp(id){const e=emp(id);if(S.trabajadores.some(w=>w.empresaId===id))return toast("No se puede eliminar: la empresa tiene trabajadores registrados");
+  confirmar(`¿Eliminar la empresa ${e.razon} (RUC ${e.ruc})?`,()=>{S.empresas=S.empresas.filter(x=>x.id!==id);if(empSel===id)empSel=S.empresas[0]?.id||"";dbDel("empresas","id",id);REPS.delete(id);render()})}
+
+/* ========================================================= */
+
+/* =========================================================
+   ACCESO DEL REPRESENTANTE LEGAL (solo administrador)
+   ========================================================= */
+function genPass(){const c="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";const a=new Uint32Array(10);crypto.getRandomValues(a);return Array.from(a,x=>c[x%c.length]).join("")}
+function formAcceso(id){
+  const e=emp(id),tiene=REPS.has(id);
+  openDlg(`<h2>Acceso del representante legal</h2>
+  <p><b>${esc(e.razon)}</b><br><span class="hint">El representante ingresa con el RUC como usuario. Solo puede ver la información de esta empresa y descargar boletas; no puede modificar nada.</span></p>
+  <div class="grid"><label>Usuario (RUC)<input value="${esc(e.ruc)}" disabled></label>
+  <label>${tiene?"Nueva contraseña":"Contraseña"} (mín. 8 caracteres)<input id="ap" type="text" minlength="8" autocomplete="off"></label></div>
+  <div class="row" style="margin-top:8px"><button class="btn sm" onclick="$('#ap').value=genPass()">Generar contraseña segura</button></div>
+  <div id="aerr" class="err" style="margin-top:8px"></div><div id="aok"></div>
+  <div class="dlg-foot">${tiene?`<button class="btn bad" style="margin-right:auto" onclick="quitarAcceso('${id}')">Quitar acceso</button>`:""}
+  <button class="btn" onclick="closeDlg()">Cerrar</button><button class="btn pri" id="abtn" onclick="guardarAcceso('${id}')">${tiene?"Cambiar contraseña":"Crear acceso"}</button></div>`);
+}
+async function guardarAcceso(id){
+  const pw=$("#ap").value.trim();if(pw.length<8){$("#aerr").textContent="La contraseña debe tener al menos 8 caracteres.";return}
+  $("#abtn").disabled=true;$("#aerr").textContent="";
+  const{error}=await sb.rpc("admin_set_rep_password",{p_empresa:id,p_password:pw});
+  $("#abtn").disabled=false;
+  if(error){$("#aerr").textContent=error.message;return}
+  REPS.add(id);const e=emp(id);
+  const txt=`Acceso a Planillas Perú\nEmpresa: ${e.razon}\nUsuario (RUC): ${e.ruc}\nContraseña: ${pw}\nDirección web: ${location.origin+location.pathname}`;
+  $("#aok").innerHTML=`<div class="note info" style="white-space:pre-line">✓ Acceso listo. Entrega estos datos al representante legal:\n\n${esc(txt)}</div><button class="btn sm" id="cpy">Copiar datos</button>`;
+  $("#cpy").onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast("Copiado")}catch(x){toast("No se pudo copiar")}};
+  vEmp();
+}
+function quitarAcceso(id){confirmar("¿Quitar el acceso del representante legal? Ya no podrá ingresar a la app.",async()=>{
+  const{error}=await sb.rpc("admin_quitar_rep",{p_empresa:id});if(error)return toast(error.message);REPS.delete(id);vEmp();toast("Acceso eliminado")})}
+
+/* =========================================================
+   MI CUENTA (cambio de contraseña)
+   ========================================================= */
+function vCuenta(){
+  $("#main").innerHTML=`<div class="card" style="max-width:520px"><h2>Mi cuenta</h2>
+  <p class="hint">${isAdmin()?`Administrador: ${esc(ME.email)}`:`Representante legal de <b>${esc(emp(MYEMP)?.razon||"")}</b> · Usuario: RUC ${esc(emp(MYEMP)?.ruc||"")}`}</p>
+  <form id="fp" onsubmit="event.preventDefault();cambiarPass()" style="display:flex;flex-direction:column;gap:12px">
+   <label>Contraseña actual<input type="password" name="a" autocomplete="current-password" required></label>
+   <label>Nueva contraseña (mín. 8 caracteres)<input type="password" name="n" minlength="8" autocomplete="new-password" required></label>
+   <label>Repite la nueva contraseña<input type="password" name="r" minlength="8" autocomplete="new-password" required></label>
+   <div id="perr" class="err"></div><div><button class="btn pri" id="pbtn">Cambiar contraseña</button></div></form></div>`;
+}
+async function cambiarPass(){
+  const f=$("#fp"),a=f.a.value,n=f.n.value,r=f.r.value;
+  if(n.length<8)return $("#perr").textContent="La nueva contraseña debe tener al menos 8 caracteres.";
+  if(n!==r)return $("#perr").textContent="Las contraseñas nuevas no coinciden.";
+  if(n===a)return $("#perr").textContent="La nueva contraseña debe ser distinta a la actual.";
+  $("#pbtn").disabled=true;$("#perr").textContent="";
+  const chk=await sb.auth.signInWithPassword({email:ME.email,password:a});
+  if(chk.error){$("#pbtn").disabled=false;return $("#perr").textContent="La contraseña actual no es correcta."}
+  const{error}=await sb.auth.updateUser({password:n});
+  $("#pbtn").disabled=false;
+  if(error)return $("#perr").textContent=error.message;
+  f.reset();toast("Contraseña actualizada");
+}
+
+/* =========================================================
+   BOLETAS EN PDF
+   ========================================================= */
+function drawBoleta(doc,w,c){
+  const E=emp(w.empresaId)||{},[y,m]=perSel.split("-").map(Number),R=196,Lx=14;
+  doc.setFont("helvetica","bold");doc.setFontSize(12);doc.text(E.razon||"",Lx,16,{maxWidth:110});
+  doc.setFont("helvetica","normal");doc.setFontSize(9);doc.text(`RUC: ${E.ruc||""}`,Lx,22);if(E.direccion)doc.text(E.direccion,Lx,26,{maxWidth:110});
+  doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text("BOLETA DE PAGO DE REMUNERACIONES",R,16,{align:"right"});
+  doc.setFont("helvetica","normal");doc.setFontSize(9);doc.text(`Periodo: ${MESES[m-1]} ${y}`,R,22,{align:"right"});doc.text("D.S. N° 001-98-TR",R,26,{align:"right"});
+  const lab={fontStyle:"bold",fillColor:[240,243,248],cellWidth:34};
+  doc.autoTable({startY:31,theme:"grid",styles:{fontSize:8,cellPadding:1.6,textColor:20},columnStyles:{0:lab,2:lab},body:[
+    ["Trabajador",nombreT(w),"DNI",w.dni],
+    ["Puesto",w.puesto||"","Régimen laboral",c.R.nombre],
+    ["Fecha de ingreso",w.fechaIngreso||"","Días laborados",String(c.dias)],
+    ["Sistema de pensiones",w.pension==="AFP"?`${c.afpN} (${w.tipoComision==="saldo"?"comisión sobre saldo":"comisión sobre flujo"})`:w.pension==="ONP"?"ONP":"Sin sistema","CUSPP",w.cuspp||"-"],
+    ["Banco",w.banco||"-","Cuenta / CCI",[w.cuenta,w.cci].filter(Boolean).join(" / ")||"-"]]});
+  const ing=[["Remuneración básica",c.basico],...c.ingresos.map(x=>[x.c.nombre,x.m])];
+  const des=[];
+  if(c.onp)des.push([`ONP (${S.config.onp}%)`,c.onp]);
+  if(c.afpAp)des.push(["AFP – Aporte obligatorio",c.afpAp]);
+  if(c.afpPr)des.push(["AFP – Prima de seguro",c.afpPr]);
+  if(c.afpCo)des.push(["AFP – Comisión",c.afpCo]);
+  if(c.quinta)des.push(["Renta de 5ta categoría",c.quinta]);
+  c.descuentos.forEach(x=>des.push([x.c.nombre,x.m]));
+  const apo=[];
+  if(c.essalud)apo.push([`EsSalud (${S.config.essalud}%)`,c.essalud]);
+  if(c.sis)apo.push(["SIS",c.sis]);if(c.sctr)apo.push(["SCTR",c.sctr]);if(c.vida)apo.push(["Vida Ley",c.vida]);
+  const n=Math.max(ing.length,des.length,apo.length,1),body=[];
+  const cell=(a,i)=>a[i]?[a[i][0],fmt(a[i][1])]:["",""];
+  for(let i=0;i<n;i++)body.push([...cell(ing,i),...cell(des,i),...cell(apo,i)]);
+  body.push(["TOTAL INGRESOS",fmt(c.totalIng),"TOTAL DESCUENTOS",fmt(c.totalDesc),"TOTAL APORTES",fmt(c.essalud+c.sis+c.sctr+c.vida)]);
+  const num_={halign:"right",cellWidth:20};
+  doc.autoTable({startY:doc.lastAutoTable.finalY+4,theme:"grid",head:[["INGRESOS","S/","DESCUENTOS","S/","APORTES DEL EMPLEADOR","S/"]],body,
+    styles:{fontSize:8,cellPadding:1.6,textColor:20},headStyles:{fillColor:[31,95,191],textColor:255},columnStyles:{1:num_,3:num_,5:num_},
+    didParseCell:d=>{if(d.section==="body"&&d.row.index===body.length-1){d.cell.styles.fontStyle="bold";d.cell.styles.fillColor=[240,243,248]}}});
+  let yy=doc.lastAutoTable.finalY+9;
+  doc.setFillColor(232,240,252);doc.rect(110,yy-6,86,10,"F");
+  doc.setFont("helvetica","bold");doc.setFontSize(12);doc.text(`NETO A PAGAR: S/ ${fmt(c.neto)}`,R-3,yy,{align:"right"});
+  yy+=32;doc.setLineWidth(0.3);doc.line(25,yy,90,yy);doc.line(120,yy,185,yy);
+  doc.setFont("helvetica","normal");doc.setFontSize(8);
+  doc.text("EMPLEADOR",57.5,yy+4,{align:"center"});doc.text(E.razon||"",57.5,yy+8,{align:"center",maxWidth:70});
+  doc.text("TRABAJADOR",152.5,yy+4,{align:"center"});doc.text(`${nombreT(w)} – DNI ${w.dni}`,152.5,yy+8,{align:"center",maxWidth:70});
+}
+function pdfBoletas(items,filename){
+  if(!window.jspdf||!window.jspdf.jsPDF){toast("No se pudo cargar el generador de PDF. Revisa tu conexión.");return}
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"});
+  if(typeof doc.autoTable!=="function"){toast("No se pudo cargar el generador de tablas PDF.");return}
+  items.forEach(({w,c},i)=>{if(i)doc.addPage();drawBoleta(doc,w,c)});
+  doc.save(filename);toast("PDF descargado");
+}
+function pdfUno(wid){const w=S.trabajadores.find(x=>x.id===wid);pdfBoletas([{w,c:calcMes(w,perData(wid))}],`boleta_${w.dni}_${perSel}.pdf`)}
+function pdfTodas(){const ws=trabajadoresDelPeriodo();if(!ws.length)return toast("No hay trabajadores en el periodo");
+  pdfBoletas(ws.map(w=>({w,c:calcMes(w,perData(w.id))})),`boletas_${emp(empSel).ruc}_${perSel}.pdf`)}
+
+/* =========================================================
+   RESTAURAR RESPALDO (importa al servidor)
+   ========================================================= */
+function restaurar(file){if(!file)return;const r=new FileReader();r.onload=()=>{
+  let o;try{o=JSON.parse(r.result)}catch(e){return toast("Archivo no válido")}
+  KEYS.forEach(k=>{if(o[k]!==undefined)S[k]=o[k]});
+  if(o.config&&o.config.empresa)S.config.empresa=o.config.empresa;
+  migrate();
+  const malos=S.empresas.filter(e=>!/^(10|15|16|17|20)\d{9}$/.test(e.ruc||""));
+  if(!malos.length){saveAll().then(()=>{render();toast("Respaldo importado")});return}
+  openDlg(`<h2>Completa el RUC de estas empresas</h2><p class="hint">Para guardarlas en el servidor cada empresa necesita un RUC válido (11 dígitos).</p>
+   ${malos.map(e=>`<div class="grid" style="margin-bottom:8px"><label>Razón social<input class="fr" data-id="${e.id}" value="${esc(e.razon)}"></label><label>RUC<input class="fu" data-id="${e.id}" maxlength="11" value="${esc(e.ruc||"")}"></label></div>`).join("")}
+   <div id="rerr" class="err"></div><div class="dlg-foot"><button class="btn pri" id="rok">Importar</button></div>`);
+  $("#rok").onclick=()=>{let ok=true;
+    document.querySelectorAll(".fu").forEach(i=>{const e=emp(i.dataset.id);e.ruc=i.value.trim();e.razon=document.querySelector(`.fr[data-id="${e.id}"]`).value.trim()||e.razon;
+      if(!/^(10|15|16|17|20)\d{9}$/.test(e.ruc)||S.empresas.some(x=>x.id!==e.id&&x.ruc===e.ruc))ok=false});
+    if(!ok)return $("#rerr").textContent="Revisa los RUC: deben tener 11 dígitos, empezar con 10, 15, 16, 17 o 20 y no repetirse.";
+    closeDlg();saveAll().then(()=>{render();toast("Respaldo importado")})};
+};r.readAsText(file)}
+
+boot();
+</script>
+</body>
+</html>
