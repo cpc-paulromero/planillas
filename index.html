@@ -230,7 +230,12 @@ async function doLogin(ev){
   const email=/^\d{11}$/.test(u)?`${u}@${REP_DOMAIN}`:u;
   $("#lbtn").disabled=true;$("#lerr").textContent="";
   const{data,error}=await sb.auth.signInWithPassword({email,password:p});
-  if(error){$("#lbtn").disabled=false;$("#lerr").textContent=/invalid/i.test(error.message)?"RUC/correo o contraseña incorrectos.":error.message;return}
+  if(error){$("#lbtn").disabled=false;const m=error.message||"";
+    $("#lerr").textContent=/invalid login credentials/i.test(m)?"RUC/correo o contraseña incorrectos."
+      :/api key|apikey|jwt|no api key/i.test(m)?"Error de conexión: la clave de config.js no es válida para este proyecto de Supabase. ("+m+")"
+      :/not confirmed/i.test(m)?"El usuario no está confirmado en Supabase (marca 'Auto Confirm User' o confírmalo). ("+m+")"
+      :/fetch|network/i.test(m)?"No se pudo conectar con Supabase. Revisa la SUPABASE_URL de config.js. ("+m+")"
+      :"Error: "+m;return}
   await enter(data.user);
 }
 async function logout(){try{await sb.auth.signOut()}catch(e){}location.hash="";location.reload()}
