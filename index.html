@@ -214,16 +214,37 @@ async function saveAll(){
   const pers=Object.keys(S.periodos).flatMap(perRows);
   if(pers.length)await q(()=>sb.from("periodos").upsert(pers));
 }
+/** Lee una tabla completa por bloques de 1000 filas (límite por consulta de Supabase) */
+async function fetchAll(table,build=q=>q){
+  const out=[];for(let from=0;;from+=1000){
+    const{data,error}=await build(sb.from(table).select("*")).range(from,from+999);
+    if(error)throw error;out.push(...(data||[]));if(!data||data.length<1000)return out;}
+}
+const PER_LOADED=new Set();
+function mergePer(rows){rows.forEach(r=>{S.periodos[r.periodo]=Object.assign(S.periodos[r.periodo]||{},r.data)})}
+/** Trae de Supabase un mes que aún no se ha cargado */
+async function ensurePer(per){
+  if(PER_LOADED.has(per))return;
+  setSync("Cargando "+per+"…");
+  const rows=await fetchAll("periodos",q=>q.eq("periodo",per));
+  mergePer(rows);PER_LOADED.add(per);setSync("✓ Conectado");
+}
+/** Si el mes de la vista no está cargado, lo trae y vuelve a dibujar la vista */
+function necesitaMes(fn){
+  if(PER_LOADED.has(perSel))return false;
+  const per=perSel;$("#main").innerHTML=`<div class="card"><div class="empty">Cargando ${esc(per)}…</div></div>`;
+  ensurePer(per).then(()=>{if(perSel===per)fn()}).catch(e=>{$("#main").innerHTML=`<div class="card"><div class="empty">No se pudo cargar el periodo: ${esc(e.message||e)}</div></div>`});
+  return true;
+}
 async function loadAll(){
   setSync("Cargando…");
-  const res=await Promise.all(["ajustes","empresas","trabajadores","periodos"].map(t=>sb.from(t).select("*")));
-  const bad=res.find(r=>r.error);if(bad)throw bad.error;
-  const[aj,em,tr,pe]=res.map(r=>r.data||[]);
+  // Solo se descarga el mes que se está viendo; los demás meses se traen al seleccionarlos (ahorra egress)
+  const[aj,em,tr,pe]=await Promise.all([fetchAll("ajustes"),fetchAll("empresas"),fetchAll("trabajadores"),fetchAll("periodos",q=>q.eq("periodo",perSel))]);
   S=clone(DEF);
   aj.forEach(r=>{S[r.clave]=r.data});
   S.empresas=em.map(r=>({id:r.id,ruc:r.ruc,razon:r.razon,direccion:r.direccion,regimenId:r.regimen_id,permiso:r.permiso||"usuario",rubro:r.rubro||"",ciudad:r.ciudad||"",departamento:r.departamento||"",provincia:r.provincia||"",distrito:r.distrito||""})).sort((a,b)=>a.razon.localeCompare(b.razon));
   S.trabajadores=tr.map(r=>({...r.data,id:r.id,empresaId:r.empresa_id})).sort((a,b)=>nombreT(a).localeCompare(nombreT(b)));
-  S.periodos={};pe.forEach(r=>{S.periodos[r.periodo]=Object.assign(S.periodos[r.periodo]||{},r.data)});
+  S.periodos={};PER_LOADED.clear();mergePer(pe);PER_LOADED.add(perSel);
   const before=JSON.stringify(S);migrate();
   if(isAdmin()){
     if(!aj.length||JSON.stringify(S)!==before)await saveAll();
@@ -750,6 +771,7 @@ function vistaPrevia(wid){const w=S.trabajadores.find(x=>x.id===wid),c=calcMes(w
   openDlg(`<div class="note">Vista previa – el cálculo aún <b>no está generado</b>. Los montos pueden cambiar hasta que lo generes.</div>`+boletaHTML(w,c)+`<div class="dlg-foot"><button class="btn" onclick="closeDlg()">Cerrar</button></div>`)}
 
 function vPlan(){
+  if(necesitaMes(vPlan))return;
   const ws=trabajadoresDelPeriodo(),all=ws.map(getCalc),rows=all.filter(x=>x.gen),pend=all.filter(x=>!x.gen);
   const T=k=>r2(rows.reduce((s,r)=>s+r.c[k],0));
   const[y,m]=perSel.split("-").map(Number);
@@ -858,6 +880,7 @@ function setPerAll(wid,p){Object.keys(p).forEach(k=>{if(p[k]===""||p[k]===null)d
    VISTA: DCTO. (faltas, tardanzas, adelantos, ret. judiciales)
    ========================================================= */
 function vDcto(){
+  if(necesitaMes(vDcto))return;
   const ws=trabajadoresDelPeriodo(),[y,m]=perSel.split("-").map(Number);
   const inp=(w,k,ph,extra="")=>{const p=perData(w.id);return`<input type="number" step="0.01" min="0" style="width:92px;text-align:right" id="${k}-${w.id}" value="${p[k]===undefined?"":esc(p[k])}" placeholder="${ph}" onchange="setDcto('${w.id}','${k}',this.value)" ${extra}>`};
   $("#main").innerHTML=`<div class="card"><div class="row" style="justify-content:space-between"><div>
@@ -1139,7 +1162,7 @@ function vPar(){
    ${inp("Tasa SCTR (% aprox. según póliza)","sctrTasa","0.001")}
   </div></div>
   <div class="card"><h2>Respaldo de datos</h2><p class="hint">Los datos se guardan automáticamente en tu base de datos de Supabase. Descarga un respaldo periódicamente. Con <b>Restaurar respaldo</b> puedes importar el archivo descargado desde la versión anterior de la app.</p>
-   <div class="row"><button class="btn" onclick="descargar('respaldo_planillas.json',JSON.stringify(S,null,1),'application/json')">Descargar respaldo</button>
+   <div class="row"><button class="btn" onclick="descargarRespaldo()">Descargar respaldo</button>
    <label class="btn" style="flex-direction:row">Restaurar / importar respaldo<input type="file" accept=".json" style="display:none" onchange="restaurar(this.files[0])"></label>
    <button class="btn bad" onclick="confirmar('¿Restablecer parámetros, AFP, regímenes y conceptos a los valores por defecto? (empresas y trabajadores se conservan)',()=>{S.config=clone(DEF.config);S.afps=clone(DEF.afps);S.conceptos=clone(DEF.conceptos);saveAll();render()})">Restablecer valores por defecto</button></div></div>`;
 }
@@ -1325,9 +1348,17 @@ function pdfTodas(){const gs=genRows();if(!gs.length)return toast("No hay cálcu
 /* =========================================================
    RESTAURAR RESPALDO (importa al servidor)
    ========================================================= */
+/** El respaldo incluye TODOS los meses: se traen de Supabase solo en este momento */
+async function descargarRespaldo(){
+  try{setSync("Preparando respaldo…");const rows=await fetchAll("periodos");
+    const per={};rows.forEach(r=>{per[r.periodo]=Object.assign(per[r.periodo]||{},r.data)});
+    Object.keys(S.periodos).forEach(k=>{per[k]=Object.assign(per[k]||{},S.periodos[k])});   // incluye cambios recientes
+    await descargar("respaldo_planillas.json",JSON.stringify({...S,periodos:per},null,1),"application/json");setSync("✓ Conectado");
+  }catch(e){toast("No se pudo preparar el respaldo: "+(e.message||e))}
+}
 function restaurar(file){if(!file)return;const r=new FileReader();r.onload=()=>{
   let o;try{o=JSON.parse(r.result)}catch(e){return toast("Archivo no válido")}
-  KEYS.forEach(k=>{if(o[k]!==undefined)S[k]=o[k]});
+  KEYS.forEach(k=>{if(o[k]!==undefined)S[k]=o[k]});Object.keys(S.periodos||{}).forEach(k=>PER_LOADED.add(k));
   if(o.config&&o.config.empresa)S.config.empresa=o.config.empresa;
   migrate();
   const malos=S.empresas.filter(e=>!/^(10|15|16|17|20)\d{9}$/.test(e.ruc||""));
