@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Planillas Perú – Sueldos y Beneficios</title>
+<title>PlanillaPRo - Perú</title>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -80,15 +80,15 @@ legend{font-size:12px;font-weight:700;padding:0 6px;color:var(--pri)}
 </style>
 </head>
 <body>
-<div id="boot"><div class="lcard"><h1>Planillas Perú</h1><p class="hint">Cargando…</p></div></div>
-<div id="login" style="display:none"><div class="lcard"><h1>Planillas Perú</h1>
+<div id="boot"><div class="lcard"><h1>PlanillaPRo - Perú</h1><p class="hint" style="margin:0 0 8px">Cálculo de planillas y gestión laboral por Paul Romero</p><p class="hint">Cargando…</p></div></div>
+<div id="login" style="display:none"><div class="lcard"><h1>PlanillaPRo - Perú</h1><p class="hint" style="margin:0 0 14px;font-weight:600">Cálculo de planillas y gestión laboral por Paul Romero</p>
   <p class="hint">Representante legal: ingresa con el <b>RUC</b> de tu empresa.<br>Administrador: ingresa con tu <b>correo</b>.</p>
   <form onsubmit="doLogin(event)"><label>RUC o correo<input id="lu" autocomplete="username" required></label>
   <label>Contraseña<input id="lp" type="password" autocomplete="current-password" required></label>
   <div id="lerr" class="err"></div><button class="btn pri" id="lbtn">Ingresar</button></form></div></div>
 <div id="app" style="display:none">
 <header>
-  <div><h1>Planillas Perú</h1><div class="sub">Cálculo de sueldos, aportes y beneficios sociales por régimen laboral</div></div>
+  <div><h1>PlanillaPRo - Perú</h1><div class="sub">Cálculo de planillas y gestión laboral por Paul Romero</div></div>
   <div id="hdr" class="row" style="margin-left:auto;align-items:center"></div>
   <div id="sync"></div>
   <div class="row" style="align-items:center"><span id="who"></span><button class="btn sm" onclick="go('cuenta')">Mi cuenta</button><button class="btn sm" onclick="logout()">Cerrar sesión</button></div>
@@ -165,7 +165,8 @@ function perRows(per){
   return Object.entries(out).map(([empresa_id,data])=>({empresa_id,periodo:per,data}));
 }
 function persist(k,item){
-  if(!isAdmin()||!sb)return;
+  if(!sb)return;
+  if(!isAdmin()&&!(k==="trabajadores"&&item&&item.empresaId===MYEMP))return;  // el rep. legal solo guarda trabajadores de su empresa
   const key=k+(item?":"+item.id:"");
   clearTimeout(timers[key]);
   timers[key]=setTimeout(()=>{
@@ -206,7 +207,7 @@ async function loadAll(){
 function showLogin(msg){$("#boot").style.display="none";$("#app").style.display="none";$("#login").style.display="flex";$("#lerr").textContent=msg||"";$("#lbtn").disabled=false}
 async function boot(){
   if(!window.supabase||!CFG.SUPABASE_URL||/TU-PROYECTO/.test(CFG.SUPABASE_URL)||!CFG.SUPABASE_ANON_KEY){
-    $("#boot").innerHTML=`<div class="lcard"><h1>Planillas Perú</h1><div class="note">Falta configurar la conexión. Edita el archivo <b>config.js</b> con la URL y la clave pública (anon key) de tu proyecto de Supabase.</div></div>`;return}
+    $("#boot").innerHTML=`<div class="lcard"><h1>PlanillaPRo - Perú</h1><div class="note">Falta configurar la conexión. Edita el archivo <b>config.js</b> con la URL y la clave pública (anon key) de tu proyecto de Supabase.</div></div>`;return}
   sb=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY);
   const{data:{session}}=await sb.auth.getSession();
   if(session)await enter(session.user);else showLogin();
@@ -410,7 +411,7 @@ function vTrab(){
   </div>
   <div class="card">
     <div class="row" style="justify-content:space-between"><div><h2>Trabajadores</h2><p class="hint">Registra a cada trabajador con su régimen, sistema de pensiones, banco y conceptos remunerativos.</p></div>
-    <div class="row"><input placeholder="Buscar DNI, nombre o puesto…" value="${esc(filtroT)}" oninput="filtroT=this.value;vTrabTable()" style="width:240px"><button class="btn pri adm" onclick="formTrab()">+ Nuevo trabajador</button></div></div>
+    <div class="row"><input placeholder="Buscar DNI, nombre o puesto…" value="${esc(filtroT)}" oninput="filtroT=this.value;vTrabTable()" style="width:240px"><button class="btn pri" onclick="formTrab()">+ Nuevo trabajador</button></div></div>
     <div id="ttab"></div>
   </div>`;
   vTrabTable();
@@ -418,7 +419,7 @@ function vTrab(){
 function vTrabTable(){
   const ws=trabEmp().filter(w=>!filtroT||(w.dni+" "+w.nombres+" "+w.apellidos+" "+w.puesto).toLowerCase().includes(filtroT.toLowerCase()));
   if(!trabEmp().length){$("#ttab").innerHTML=`<div class="empty">Esta empresa aún no tiene trabajadores. Pulsa <b>+ Nuevo trabajador</b> para empezar.</div>`;return}
-  $("#ttab").innerHTML=`<div class="scroll"><table><thead><tr><th>DNI</th><th>Apellidos y nombres</th><th>Puesto</th><th>Régimen</th><th>Pensión</th><th>Salud</th><th class="n">Remuneración</th><th>Banco / Cuenta</th><th>Estado</th><th class="adm"></th></tr></thead><tbody>
+  $("#ttab").innerHTML=`<div class="scroll"><table><thead><tr><th>DNI</th><th>Apellidos y nombres</th><th>Puesto</th><th>Régimen</th><th>Pensión</th><th>Salud</th><th class="n">Remuneración</th><th>Banco / Cuenta</th><th>Estado</th><th></th></tr></thead><tbody>
   ${ws.map(w=>{const A=afp(w.afpId);return`<tr>
     <td>${esc(w.dni)}</td><td><b>${esc(nombreT(w))}</b><div class="hint" style="margin:0">${esc(w.correo||"")} ${w.telefono?"· "+esc(w.telefono):""}</div></td>
     <td>${esc(w.puesto)}</td><td><span class="tag">${esc(regW(w).nombre)}</span></td>
@@ -427,10 +428,10 @@ function vTrabTable(){
     <td class="n">${S_(w.sueldo)}${num(w.sueldo)<rmvAt()?' <span class="tag bad" title="Menor a la RMV">&lt; RMV</span>':""}</td>
     <td>${esc(w.banco||"")}<div class="hint" style="margin:0">${esc(w.cuenta||"")}${w.cci?" · CCI "+esc(w.cci):""}</div></td>
     <td>${w.activo===false?'<span class="tag bad">Cesado</span>':'<span class="tag ok">Activo</span>'}</td>
-    <td style="white-space:nowrap" class="adm"><button class="btn sm" onclick="formTrab('${w.id}')">Editar</button> <button class="btn sm bad" onclick="delTrab('${w.id}')">Eliminar</button></td></tr>`}).join("")}
+    <td style="white-space:nowrap"><button class="btn sm" onclick="formTrab('${w.id}')">Editar</button> <button class="btn sm bad adm" onclick="delTrab('${w.id}')">Eliminar</button></td></tr>`}).join("")}
   </tbody></table></div>`;
 }
-function delTrab(id){const w=S.trabajadores.find(x=>x.id===id);confirmar(`¿Eliminar a ${nombreT(w)}? Esta acción no se puede deshacer.`,()=>{S.trabajadores=S.trabajadores.filter(x=>x.id!==id);dbDel("trabajadores","id",id);render();toast("Trabajador eliminado")})}
+function delTrab(id){if(!isAdmin())return;const w=S.trabajadores.find(x=>x.id===id);confirmar(`¿Eliminar a ${nombreT(w)}? Esta acción no se puede deshacer.`,()=>{S.trabajadores=S.trabajadores.filter(x=>x.id!==id);dbDel("trabajadores","id",id);render();toast("Trabajador eliminado")})}
 function formTrab(id){
   const w=id?clone(S.trabajadores.find(x=>x.id===id)):{id:"",dni:"",nombres:"",apellidos:"",direccion:"",correo:"",telefono:"",puesto:"",empresaId:empSel,fechaIngreso:isoD(new Date()),fechaCese:"",sueldo:rmvAt(),banco:"",cuenta:"",cci:"",pension:"ONP",afpId:S.afps[0]?.id||"",cuspp:"",tipoComision:"flujo",salud:"ESSALUD",sctr:false,quinta:0,conceptos:[],activo:true};
   const has=cid=>(w.conceptos||[]).find(a=>a.id===cid);
@@ -875,7 +876,7 @@ async function guardarAcceso(id){
   $("#abtn").disabled=false;
   if(error){$("#aerr").textContent=error.message;return}
   REPS.add(id);const e=emp(id);
-  const txt=`Acceso a Planillas Perú\nEmpresa: ${e.razon}\nUsuario (RUC): ${e.ruc}\nContraseña: ${pw}\nDirección web: ${location.origin+location.pathname}`;
+  const txt=`Acceso a PlanillaPRo - Perú\nEmpresa: ${e.razon}\nUsuario (RUC): ${e.ruc}\nContraseña: ${pw}\nDirección web: ${location.origin+location.pathname}`;
   $("#aok").innerHTML=`<div class="note info" style="white-space:pre-line">✓ Acceso listo. Entrega estos datos al representante legal:\n\n${esc(txt)}</div><button class="btn sm" id="cpy">Copiar datos</button>`;
   $("#cpy").onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast("Copiado")}catch(x){toast("No se pudo copiar")}};
   vEmp();
