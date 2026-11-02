@@ -1,4 +1,4 @@
-# PlanillaPRo – Planillas Perú
+# PlanillaPRo - Perú
 
 Aplicación web para llevar la planilla de empresas peruanas. Calcula sueldos, descuentos de AFP u ONP, aportes a EsSalud, boletas de pago, CTS, gratificaciones, vacaciones e indemnizaciones según el régimen laboral de cada empresa.
 
