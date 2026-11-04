@@ -74,7 +74,8 @@ La base de datos aplica la misma matriz (`supabase_migracion.sql`). Además tien
 
 ### Cuentas de prueba y suscripción
 
-- En la pantalla de ingreso, **Crear cuenta de prueba** permite que cualquier persona se registre con el RUC de su empresa (se valida el dígito verificador), su razón social, su régimen laboral y una contraseña.
+- En la pantalla de ingreso, **Crear cuenta de prueba** permite que cualquier persona se registre con el RUC de su empresa (se valida el dígito verificador), su razón social, rubro, dirección fiscal, departamento / provincia / distrito, ciudad (si la deja vacía se usa la provincia), régimen laboral, correo y una contraseña. Todos son obligatorios salvo la ciudad.
+- El usuario de una cuenta **Prueba** puede **eliminar su cuenta** desde *Mi cuenta* (por ejemplo, si registró mal el RUC): confirma con su RUC y su contraseña, y se borran la empresa, sus trabajadores, planillas, honorarios 4ta y su usuario. Las cuentas *Cliente* y *Suscriptor* no tienen esa opción; solo el administrador general puede eliminarlas desde *Empresas*.
 - La cuenta queda con tipo **Prueba**: tiene los mismos accesos que un representante con permiso "administrador", pero su empresa **puede registrar como máximo 2 trabajadores** (activos y cesados). Al intentar registrar un tercero, la app muestra los datos de contacto.
 - En **Empresas**, el administrador cambia el **tipo de cuenta** directamente en la lista. Al pasarla a *Cliente* o *Suscriptor* desaparece el límite. Las cuentas creadas por registro muestran la nota "Se registró solo".
 - El límite y la suscripción los controla la base de datos (`supabase_migracion.sql`): un representante no puede saltarse el límite ni activarse la suscripción. Las empresas que existían antes de ejecutar el script quedan con suscripción activa.

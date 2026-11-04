@@ -8,7 +8,8 @@
 --   2. Función emp_actualizar_datos (el rep. con permiso edita rubro y dirección).
 --   3. Escritura de representantes: trabajadores (todo representante, incluye la carga masiva) y
 --      periodos = cálculo de planilla (administrador y representantes con permiso "administrador").
---   4. Tipos de cuenta: registro de prueba con RUC y límite de 2 trabajadores solo en cuentas de prueba.
+--   4. Tipos de cuenta: registro de prueba con RUC (con rubro, dirección y ubigeo), límite de 2 trabajadores
+--      solo en cuentas de prueba y borrado de la propia cuenta solo si es de prueba (eliminar_mi_cuenta).
 --   5. Recibos por honorarios (prestadores de 4ta categoría); en cuentas de prueba, máximo 2 prestadores
 --      y 2 recibos por prestador.
 --   6. Correo de los usuarios: recuperación de contraseña para todos, ingreso con RUC protegido.
@@ -257,16 +258,32 @@ end $$;
 -- Registro de cuentas de prueba (lo usa la pantalla de ingreso, sin iniciar sesión).
 -- El correo que registra el usuario es el de su cuenta: lo usa para recuperar su contraseña.
 -- Sigue ingresando con su RUC (ver login_ruc en la sección 6).
+-- Pide también rubro, dirección y ubicación (departamento, provincia, distrito). Si la ciudad
+-- queda en blanco, se usa el nombre de la provincia.
 drop function if exists public.registrar_prueba(text, text, text, text);
-create or replace function public.registrar_prueba(p_ruc text, p_razon text, p_regimen text, p_password text, p_email text)
+drop function if exists public.registrar_prueba(text, text, text, text, text);
+create or replace function public.registrar_prueba(p_ruc text, p_razon text, p_regimen text, p_password text, p_email text,
+                                                   p_rubro text, p_direccion text, p_departamento text, p_provincia text,
+                                                   p_distrito text, p_ciudad text default null)
 returns void language plpgsql security definer set search_path = public, auth, extensions as $$
 declare
   v_ruc   text := trim(coalesce(p_ruc, ''));
   v_razon text := trim(coalesce(p_razon, ''));
+  v_rubro text := trim(coalesce(p_rubro, ''));
+  v_dir   text := trim(coalesce(p_direccion, ''));
+  v_dep   text := trim(coalesce(p_departamento, ''));
+  v_prov  text := trim(coalesce(p_provincia, ''));
+  v_dist  text := trim(coalesce(p_distrito, ''));
+  v_ciud  text := coalesce(nullif(trim(coalesce(p_ciudad, '')), ''), trim(coalesce(p_provincia, '')));
   v_email text;
   v_id    text;
   v_uid   uuid;
 begin
+  if v_rubro = '' then raise exception 'Ingresa el rubro de tu empresa.'; end if;
+  if v_dir = '' then raise exception 'Ingresa la dirección de tu empresa.'; end if;
+  if v_dep = '' or v_prov = '' or v_dist = '' then
+    raise exception 'Elige el departamento, la provincia y el distrito de tu empresa.';
+  end if;
   if not public.ruc_valido(v_ruc) then
     raise exception 'El RUC no es válido. Revisa que tenga 11 dígitos y esté bien escrito.';
   end if;
@@ -289,7 +306,7 @@ begin
 
   v_id := 'p' || substr(md5(gen_random_uuid()::text), 1, 13);
   insert into public.empresas (id, ruc, razon, direccion, regimen_id, permiso, rubro, ciudad, departamento, provincia, distrito, origen, tipo_cuenta)
-  values (v_id, v_ruc, v_razon, '', p_regimen, 'administrador', '', '', '', '', '', 'prueba', 'prueba');
+  values (v_id, v_ruc, v_razon, v_dir, p_regimen, 'administrador', v_rubro, v_ciud, v_dep, v_prov, v_dist, 'prueba', 'prueba');
 
   v_uid := gen_random_uuid();
   insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -306,8 +323,44 @@ begin
   insert into public.profiles (id, role, empresa_id) values (v_uid, 'rep', v_id);
 end $$;
 
-revoke execute on function public.registrar_prueba(text, text, text, text, text) from public;
-grant  execute on function public.registrar_prueba(text, text, text, text, text) to anon, authenticated;
+revoke execute on function public.registrar_prueba(text, text, text, text, text, text, text, text, text, text, text) from public;
+grant  execute on function public.registrar_prueba(text, text, text, text, text, text, text, text, text, text, text) to anon, authenticated;
+
+-- El usuario de una cuenta de PRUEBA puede eliminar su propia cuenta (por ejemplo, si registró mal el RUC).
+-- Confirma escribiendo su RUC y su contraseña. Borra la empresa con sus trabajadores, planillas,
+-- honorarios 4ta y su usuario. Cuentas Cliente y Suscriptor: solo las elimina el administrador general.
+create or replace function public.eliminar_mi_cuenta(p_ruc text, p_password text)
+returns void language plpgsql security definer set search_path = public, auth, extensions as $$
+declare
+  v_uid  uuid := auth.uid();
+  v_emp  text;
+  v_ruc  text;
+  v_tipo text;
+  v_hash text;
+begin
+  if v_uid is null then raise exception 'No autorizado'; end if;
+  select p.empresa_id into v_emp from public.profiles p where p.id = v_uid and p.role = 'rep';
+  if v_emp is null then raise exception 'Solo el representante de una cuenta de prueba puede eliminar su cuenta.'; end if;
+  select e.ruc, e.tipo_cuenta into v_ruc, v_tipo from public.empresas e where e.id = v_emp;
+  if v_tipo is distinct from 'prueba' then
+    raise exception 'Tu cuenta no es de prueba: para eliminarla comunícate con el administrador.';
+  end if;
+  if trim(coalesce(p_ruc, '')) <> v_ruc then raise exception 'El RUC no coincide con el de tu cuenta.'; end if;
+  select u.encrypted_password into v_hash from auth.users u where u.id = v_uid;
+  if v_hash is null or p_password is null or extensions.crypt(p_password, v_hash) <> v_hash then
+    raise exception 'La contraseña no es correcta.';
+  end if;
+
+  delete from public.prestadores4ta where empresa_id = v_emp;
+  delete from public.periodos       where empresa_id = v_emp;
+  delete from public.trabajadores   where empresa_id = v_emp;
+  delete from public.profiles       where empresa_id = v_emp and role = 'rep';
+  delete from public.empresas       where id = v_emp;
+  delete from public.intentos_login where ruc = v_ruc;
+  delete from auth.users            where id = v_uid;   -- sus sesiones e identidades se borran en cascada
+end $$;
+revoke execute on function public.eliminar_mi_cuenta(text, text) from public, anon;
+grant  execute on function public.eliminar_mi_cuenta(text, text) to authenticated;
 
 -- ---------------------------------------------------------------------
 --  5. RECIBOS POR HONORARIOS (prestadores de 4ta categoría)

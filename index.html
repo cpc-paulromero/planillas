@@ -200,11 +200,15 @@ tr.lock input{pointer-events:none;opacity:.55}
     <label>Repite la nueva contraseña<input id="np2" type="password" minlength="8" autocomplete="new-password" required></label>
     <div id="nperr" class="err"></div><button class="btn pri" id="npbtn">Guardar e ingresar</button></form>
   <form id="freg" hidden onsubmit="registrar(event)">
-    <div class="note info" style="margin:0">Prueba la app gratis con todas sus funciones. La cuenta de prueba permite registrar hasta <b>2 trabajadores</b>.</div>
+    <div class="note info" style="margin:0">Prueba la app gratis con todas sus funciones. La cuenta de prueba permite registrar hasta <b>2 trabajadores</b> y <b>2 prestadores de 4ta</b> (2 recibos cada uno).</div>
     <label>RUC de tu empresa<input id="rruc" maxlength="11" inputmode="numeric" autocomplete="username" required></label>
     <label>Razón social<input id="rrazon" required></label>
+    <label>Rubro de la empresa<input id="rrubro" name="rubro" maxlength="80" placeholder="Ej.: Comercio de abarrotes" required></label>
+    <label>Dirección fiscal<input id="rdir" name="direccion" maxlength="150" placeholder="Av., calle, número" autocomplete="street-address" required></label>
+    <div id="rubi" style="display:contents"></div>
+    <label>Ciudad<input id="rciudad" name="ciudad" maxlength="60" placeholder="Si la dejas vacía, se usa la provincia"></label>
+    <label>Régimen laboral<select id="rreg" required></select></label>
     <label>Correo electrónico<input id="rmail2" type="email" autocomplete="email" required><span class="hint" style="margin:0">Lo usarás para recuperar tu contraseña. Ingresarás con tu RUC.</span></label>
-    <label>Régimen laboral<select id="rreg"></select></label>
     <label>Crea una contraseña (mín. 8 caracteres)<input id="rp1" type="password" minlength="8" autocomplete="new-password" required></label>
     <label>Repite la contraseña<input id="rp2" type="password" minlength="8" autocomplete="new-password" required></label>
     <div id="rerr2" class="err"></div><button class="btn pri" id="rbtn">Crear cuenta e ingresar</button>
@@ -490,18 +494,25 @@ async function guardarNuevaClave(ev){
   verPanel("login");await enter(data.user);toast("Contraseña actualizada");
 }
 function verRegistro(on){verPanel(on?"reg":"login");
-  if(on){$("#rreg").innerHTML=DEF.config.regimenes.map(r=>`<option value="${r.id}">${esc(r.nombre)}${r.ventasUIT?` (ventas ≤ ${r.ventasUIT} UIT)`:""}</option>`).join("");$("#rruc").focus()}}
+  if(on){if(!$("#rubi").children.length){$("#rubi").innerHTML=ubiHTML({});$("#rubi").querySelectorAll("select").forEach(s=>s.required=true)}
+    $("#rreg").innerHTML=DEF.config.regimenes.map(r=>`<option value="${r.id}">${esc(r.nombre)}${r.ventasUIT?` (ventas ≤ ${r.ventasUIT} UIT)`:""}</option>`).join("");$("#rruc").focus()}}
 async function registrar(ev){
   ev.preventDefault();
   const ruc=$("#rruc").value.trim(),razon=$("#rrazon").value.trim(),mail=$("#rmail2").value.trim().toLowerCase(),reg=$("#rreg").value,p1=$("#rp1").value,p2=$("#rp2").value,err=$("#rerr2");
   err.textContent="";
   if(!rucValido(ruc))return err.textContent="El RUC no es válido. Revisa que tenga 11 dígitos y esté bien escrito.";
   if(razon.length<3)return err.textContent="Ingresa la razón social de tu empresa.";
+  const f=$("#freg"),rubro=f.rubro.value.trim(),dir=f.direccion.value.trim(),u=ubiVals(f),ciudad=f.ciudad.value.trim()||u.provincia;
+  if(!rubro)return err.textContent="Ingresa el rubro de tu empresa.";
+  if(!dir)return err.textContent="Ingresa la dirección de tu empresa.";
+  if(!u.departamento||!u.provincia||!u.distrito)return err.textContent="Elige el departamento, la provincia y el distrito de tu empresa.";
+  if(!reg)return err.textContent="Elige el régimen laboral de tu empresa.";
   if(!correoOk(mail))return err.textContent="Ingresa un correo electrónico válido.";
   if(p1.length<8)return err.textContent="La contraseña debe tener al menos 8 caracteres.";
   if(p1!==p2)return err.textContent="Las contraseñas no coinciden.";
   $("#rbtn").disabled=true;
-  const{error}=await sb.rpc("registrar_prueba",{p_ruc:ruc,p_razon:razon,p_regimen:reg,p_password:p1,p_email:mail});
+  const{error}=await sb.rpc("registrar_prueba",{p_ruc:ruc,p_razon:razon,p_regimen:reg,p_password:p1,p_email:mail,
+    p_rubro:rubro,p_direccion:dir,p_departamento:u.departamento,p_provincia:u.provincia,p_distrito:u.distrito,p_ciudad:ciudad});
   if(error){$("#rbtn").disabled=false;err.textContent=/function|schema cache/i.test(error.message)?"El registro aún no está habilitado. Comunícate con el administrador.":error.message;return}
   const{data,error:e2}=await sb.auth.signInWithPassword({email:mail,password:p1});
   $("#rbtn").disabled=false;
@@ -2023,11 +2034,11 @@ function onTipoCuenta(f){const cli=f.tipo.value==="cliente";f.permiso.disabled=!
   $("#permtxt").innerHTML=permTxt(cli?f.permiso.value:"administrador")}
 async function saveEmp(id){const f=$("#fe");
   if(!isAdmin()){   // administrador de empresa: solo rubro, dirección y ubicación, vía función segura del servidor
-    const d={rubro:f.rubro.value.trim(),direccion:f.direccion.value.trim(),ciudad:f.ciudad.value.trim(),...ubiVals(f)};
+    const d={rubro:f.rubro.value.trim(),direccion:f.direccion.value.trim(),ciudad:f.ciudad.value.trim()||f.provincia.value,...ubiVals(f)};
     const{error}=await sb.rpc("emp_actualizar_datos",{p_rubro:d.rubro,p_direccion:d.direccion,p_departamento:d.departamento,p_provincia:d.provincia,p_distrito:d.distrito,p_ciudad:d.ciudad});
     if(error){$("#eerr").textContent="No se pudo guardar: "+error.message;return}
     Object.assign(emp(MYEMP),d);closeDlg();render();toast("Datos de la empresa actualizados");return}
-  const o={permiso:f.permiso.value,tipo:f.tipo.value,ruc:f.ruc.value.trim(),razon:f.razon.value.trim(),direccion:f.direccion.value.trim(),regimenId:f.regimenId.value,rubro:f.rubro.value.trim(),ciudad:f.ciudad.value.trim(),...ubiVals(f)};
+  const o={permiso:f.permiso.value,tipo:f.tipo.value,ruc:f.ruc.value.trim(),razon:f.razon.value.trim(),direccion:f.direccion.value.trim(),regimenId:f.regimenId.value,rubro:f.rubro.value.trim(),ciudad:f.ciudad.value.trim()||f.provincia.value,...ubiVals(f)};
   const err=[];
   if(!/^(10|15|16|17|20)\d{9}$/.test(o.ruc))err.push("El RUC debe tener 11 dígitos y empezar con 10, 15, 16, 17 o 20.");
   if(S.empresas.some(e=>e.ruc===o.ruc&&e.id!==id))err.push("Ya existe una empresa registrada con ese RUC.");
@@ -2091,8 +2102,30 @@ function vCuenta(){
    <p class="hint">${correoReal(ME.email)?`Si olvidas tu contraseña, te enviaremos el enlace a <b>${esc(ME.email)}</b>. Sigues ingresando con tu RUC.`:`<span style="color:var(--warn)">Aún no registras un correo.</span> Regístralo para poder recuperar tu contraseña sin pedírsela al administrador. Sigues ingresando con tu RUC.`}</p>
    <form id="fmail" onsubmit="event.preventDefault();guardarMiCorreo()" style="display:flex;flex-direction:column;gap:12px">
     <label>Correo electrónico<input type="email" name="m" id="mcorreo" autocomplete="email" value="${esc(correoReal(ME.email))}" required></label>
-    <div id="merr" class="err"></div><div><button class="btn pri" id="mbtn">${correoReal(ME.email)?"Cambiar correo":"Registrar correo"}</button></div></form></div>`}`;
+    <div id="merr" class="err"></div><div><button class="btn pri" id="mbtn">${correoReal(ME.email)?"Cambiar correo":"Registrar correo"}</button></div></form></div>`}
+  ${!isAdmin()&&enPrueba(emp(MYEMP))?`<div class="card" style="max-width:520px"><h2>Eliminar mi cuenta</h2>
+   <p class="hint">Si registraste mal tu RUC o ya no usarás la app, puedes eliminar tu cuenta de prueba. Se borran la empresa, sus trabajadores, planillas y recibos por honorarios, y tu usuario. <b>No se puede deshacer.</b></p>
+   <div><button class="btn bad" onclick="dlgEliminarCuenta()">Eliminar mi cuenta de prueba</button></div></div>`:""}`;
 }
+/* Solo cuentas de prueba: el propio usuario elimina su cuenta confirmando RUC y contraseña (eliminar_mi_cuenta en la BD) */
+function dlgEliminarCuenta(){const E=emp(MYEMP);if(!E||!enPrueba(E)||isAdmin())return;
+  openDlg(`<h2>Eliminar mi cuenta de prueba</h2>
+  <div class="note" style="background:var(--bad-soft);color:var(--bad)">Se eliminarán de forma permanente <b>${esc(E.razon)}</b> (RUC ${esc(E.ruc)}), sus ${nTrab(E.id)} trabajador(es), sus planillas, sus recibos por honorarios y tu usuario. No se puede deshacer.</div>
+  <form id="fdel" onsubmit="event.preventDefault();eliminarMiCuenta()" style="display:flex;flex-direction:column;gap:12px">
+   <label>Para confirmar, escribe tu RUC<input id="delruc" maxlength="11" inputmode="numeric" autocomplete="off" required></label>
+   <label>Tu contraseña<input id="delpw" type="password" autocomplete="current-password" required></label>
+   <div id="delerr" class="err"></div>
+   <div class="dlg-foot"><button type="button" class="btn" onclick="closeDlg()">Cancelar</button><button class="btn bad" id="delbtn">Eliminar definitivamente</button></div></form>`);
+  $("#delruc").focus()}
+async function eliminarMiCuenta(){const E=emp(MYEMP),ruc=$("#delruc").value.trim(),pw=$("#delpw").value,e=$("#delerr");e.textContent="";
+  if(ruc!==E.ruc)return e.textContent="El RUC no coincide con el de tu cuenta.";
+  if(!pw)return e.textContent="Ingresa tu contraseña.";
+  $("#delbtn").disabled=true;const{error}=await sb.rpc("eliminar_mi_cuenta",{p_ruc:ruc,p_password:pw});
+  if(error){$("#delbtn").disabled=false;return e.textContent=/function|schema cache/i.test(error.message)?"Esta opción aún no está habilitada. Comunícate con el administrador.":error.message}
+  Object.values(timers).forEach(x=>clearTimeout(x.t));Object.keys(timers).forEach(k=>delete timers[k]);
+  try{await sb.auth.signOut()}catch(x){}
+  try{localStorage.removeItem(LS+"-emp")}catch(x){}
+  location.hash="";location.reload()}
 async function guardarMiCorreo(){
   const v=$("#mcorreo").value.trim().toLowerCase();$("#merr").textContent="";
   if(!correoOk(v))return $("#merr").textContent="Ingresa un correo electrónico válido.";
