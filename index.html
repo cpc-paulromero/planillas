@@ -1396,7 +1396,7 @@ function savePrestForm(pid){const p=prestPorId(pid),f=$("#fps");
 
 /* ---------- PLAME: Estructura 7 (.ps4) y Estructura 20 (.4ta) ----------
    .ps4: tipo doc (06 RUC si es domiciliado)|RUC|ap. paterno|ap. materno|nombres|domiciliado (1/2)|convenio (Tabla 25)|
-   .4ta: tipo doc|RUC|tipo comprobante (Tabla 23)|serie|número|monto total|fecha emisión|fecha pago (dd/mm/aaaa)|retención IR 4ta (1 sí / 0 no)|régimen pensionario (3 no aplica)|aporte (vacío)| */
+   .4ta: tipo doc|RUC|tipo comprobante (Tabla 23)|serie|número|monto total|fecha emisión|fecha pago (dd/mm/aaaa)|retención IR 4ta (1 sí / 0 no)|campo 10 en blanco|campo 11 en blanco| */
 function datosPs4(){
   const E=emp(empSel),[y,m]=perSel.split("-"),base=`0601${y}${m}${E.ruc}`,ps4=[],ta=[],av=[],cut=s=>String(s||"").slice(0,40);
   prestadores().forEach(p=>{const rs=recDelMes(p);if(!rs.length)return;
@@ -1405,8 +1405,8 @@ function datosPs4(){
     ps4.push(`06|${p.ruc}|${cut(p.apPat)}|${cut(p.apMat)}|${cut(p.nombres)}|${p.domiciliado||"1"}|${p.convenio||"0"}|`);
     rs.forEach(({r})=>{const pago=r.fechaPago||r.fechaEmision;
       if(r.moneda!=="PEN")av.push(`${p.nombre} ${r.serie}-${r.numero}: está en ${r.moneda}; la PLAME lo pide en soles. Corrige el monto antes de declarar.`);
-      // Régimen pensionario de independientes (Ley 29903) no vigente: siempre 3 (no aplica) y sin importe
-      ta.push(`06|${p.ruc}|${r.tipo}|${r.serie}|${r.numero}|${m2(r.bruto)}|${fDMY(r.fechaEmision)}|${fDMY(pago)}|${retIR(r)}|3||`)})});
+      // Campos 10 y 11 en blanco
+      ta.push(`06|${p.ruc}|${r.tipo}|${r.serie}|${r.numero}|${m2(r.bruto)}|${fDMY(r.fechaEmision)}|${fDMY(pago)}|${retIR(r)}|||`)})});
   return{base,av,files:[["ps4","Prestadores de servicios 4ta (Estructura 7)",ps4],["4ta","Detalle de comprobantes (Estructura 20)",ta]]};
 }
 function dlgPs4(){
