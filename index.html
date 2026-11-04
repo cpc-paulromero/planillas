@@ -29,11 +29,16 @@ header .sub{color:var(--muted);font-size:12px}
 nav{display:flex;gap:4px;padding:8px 20px;background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto}
 nav button{border:0;background:none;padding:8px 12px;border-radius:8px;color:var(--muted);font:inherit;cursor:pointer;white-space:nowrap}
 nav button.on{background:var(--pri-soft);color:var(--pri);font-weight:600}
-.subnav{display:flex;gap:2px;margin:0 0 16px;border-bottom:1px solid var(--line);overflow-x:auto}
+.subnav{display:flex;gap:2px;margin:0 0 16px;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden}
 .subnav button{border:0;background:none;padding:9px 16px;font:inherit;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .subnav button:hover{color:var(--ink)}.subnav button.on{color:var(--pri);border-bottom-color:var(--pri);font-weight:600}
 .subnav button:focus-visible{outline:2px solid var(--pri);outline-offset:-2px}
+/* Menú: en PC el contenedor no existe para el diseño (las pestañas quedan igual) y el botón «Menú» se oculta */
+.navlist{display:contents}
+.navtog{display:none!important}
 main{padding:20px;max-width:1400px;margin:0 auto}
+
+
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px}
 .card h2{font-size:16px;margin:0 0 4px}
 .card h3{font-size:14px;margin:16px 0 8px}
@@ -109,6 +114,69 @@ tr.lock input{pointer-events:none;opacity:.55}
 .lfoot{margin-top:14px;text-align:center;font-size:11px;color:#5d6678}
 .hbrand{display:flex;gap:12px;align-items:center}.hbrand img{width:44px;height:44px;border-radius:10px;flex:none}
 #who{font-size:12px;color:var(--muted)}
+/* =========================================================
+   CELULAR (hasta 760 px). Nada de este bloque se aplica en PC.
+   ========================================================= */
+@media (max-width:760px){
+  body{overflow-x:hidden}
+  input,select,textarea{font-size:16px}                     /* evita el zoom automático al escribir en iPhone */
+  /* Encabezado compacto */
+  header{padding:10px 12px;gap:8px 10px}
+  .hbrand{gap:8px;min-width:0}.hbrand img{width:34px;height:34px;border-radius:8px}
+  header h1{font-size:15px}header .sub{display:none}
+  #hdr{margin-left:0!important;width:100%;order:3}
+  #hdr label{flex:1 1 100%;min-width:0}#hdr select{max-width:none;width:100%;min-width:0}
+  #sync{order:2;margin-left:auto}
+  header>.row:last-child{order:4;width:100%;justify-content:space-between;gap:6px}
+  #who{flex:1 1 100%;font-size:11px}
+  /* Menú hamburguesa */
+  nav{display:block;padding:6px 12px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5;overflow:visible}
+  .navtog{display:flex!important;align-items:center;gap:10px;width:100%;padding:9px 4px;color:var(--ink)!important;font-weight:600}
+  .navtog b{margin-left:auto;color:var(--pri);font-weight:600;overflow:hidden;text-overflow:ellipsis}
+  .hamb,.hamb::before,.hamb::after{display:block;width:18px;height:2px;background:currentColor;border-radius:2px;position:relative}
+  .hamb::before,.hamb::after{content:"";position:absolute;left:0}.hamb::before{top:-6px}.hamb::after{top:6px}
+  .navlist{display:none;flex-direction:column;gap:2px;padding:4px 0 8px}
+  nav.open .navlist{display:flex}
+  .navlist button{text-align:left;padding:11px 12px}
+  /* Sub-pestañas Principal / Dctos.: botones del mismo ancho */
+  .subnav button{flex:1 1 0;padding:10px 8px}
+  /* Contenido */
+  main{padding:12px}
+  .card{padding:12px;border-radius:9px}
+  .grid{grid-template-columns:1fr}
+  .grid>*,label{min-width:0}
+  input,select,textarea{max-width:100%}
+  .row>input,.row>label>input,.row>select{width:100%!important;max-width:100%}
+  .row>div,.row>label{min-width:0}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .kpi{padding:10px}.kpi .v{font-size:16px;overflow-wrap:anywhere}
+  .cols3{grid-template-columns:1fr}
+  /* Tablas anchas: desplazamiento horizontal dentro de su recuadro; la primera columna queda fija */
+  .card>table,.card>.row+table,#dlg table,fieldset table{display:block;width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #dlg form,#dlg fieldset{min-width:0;min-inline-size:0;max-width:100%}
+  .scroll{max-height:65vh;-webkit-overflow-scrolling:touch}
+  .scroll th:first-child,.scroll td:first-child{position:sticky;left:0;z-index:1;background:var(--card);box-shadow:1px 0 0 var(--line)}
+  .scroll thead th:first-child{z-index:2;background:var(--bg)}
+  .scroll tfoot td:first-child{background:var(--bg)}
+  td,th{padding:6px 7px}
+  pre{white-space:pre;overflow-x:auto;max-width:100%}
+  /* Ventanas (modales): ocupan todo el ancho del celular */
+  #ov{padding:0;align-items:stretch}
+  #dlg{max-width:100%!important;width:100%;min-height:100%;border-radius:0;border:0;padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px))}
+  .dlg-foot{flex-wrap:wrap;position:sticky;bottom:0;background:var(--card);margin-left:-14px;margin-right:-14px;padding:10px 14px}
+  .dlg-foot .btn{flex:1 1 auto}
+  fieldset{padding:10px;min-width:0}
+  .drop{padding:22px 12px}
+  /* Ingreso, registro y recuperación */
+  .lwrap{padding:16px 12px;align-items:flex-start}
+  .lpanel{padding:22px 18px 18px;border-radius:16px}
+  .lbrand img{width:60px;height:60px}.lbrand h1{font-size:21px}
+  .toast{max-width:calc(100vw - 24px);bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+}
+@media (max-width:420px){
+  .lcontact{grid-template-columns:1fr}
+  .kpi .l{font-size:11px}
+}
 </style>
 </head>
 <body>
@@ -121,10 +189,10 @@ tr.lock input{pointer-events:none;opacity:.55}
   <p class="lreg"><button type="button" class="linkbtn" onclick="verPanel('rec')">¿Olvidaste tu contraseña?</button></p>
   <p class="lreg">¿Aún no tienes cuenta? <button type="button" class="linkbtn" onclick="verRegistro(true)">Crear cuenta de prueba</button></p></form>
   <form id="frec" hidden onsubmit="recuperar(event)">
-    <p class="hint" style="margin:0">Escribe el correo con el que ingresas y te enviaremos un enlace para crear una nueva contraseña.</p>
-    <label>Correo electrónico<input id="rmail" type="email" autocomplete="email" required></label>
+    <p class="hint" style="margin:0">Escribe el correo que registraste en tu cuenta y te enviaremos un enlace para crear una nueva contraseña. Si ingresas con RUC, también es tu correo registrado.</p>
+    <label>Correo electrónico registrado<input id="rmail" type="email" autocomplete="email" required></label>
     <div id="recmsg"></div><button class="btn pri" id="recbtn">Enviar enlace</button>
-    <p class="hint" style="margin:0">¿Ingresas con el <b>RUC</b> de tu empresa? Pide al administrador que te asigne una contraseña nueva.</p>
+    <p class="hint" style="margin:0">¿Nunca registraste un correo? Pide al administrador que te asigne una contraseña nueva y registra tu correo en <b>Mi cuenta</b>.</p>
     <p class="lreg"><button type="button" class="linkbtn" onclick="verPanel('login')">Volver a ingresar</button></p></form>
   <form id="fnew" hidden onsubmit="guardarNuevaClave(event)">
     <p class="hint" style="margin:0">Crea tu nueva contraseña.</p>
@@ -135,6 +203,7 @@ tr.lock input{pointer-events:none;opacity:.55}
     <div class="note info" style="margin:0">Prueba la app gratis con todas sus funciones. La cuenta de prueba permite registrar hasta <b>2 trabajadores</b>.</div>
     <label>RUC de tu empresa<input id="rruc" maxlength="11" inputmode="numeric" autocomplete="username" required></label>
     <label>Razón social<input id="rrazon" required></label>
+    <label>Correo electrónico<input id="rmail2" type="email" autocomplete="email" required><span class="hint" style="margin:0">Lo usarás para recuperar tu contraseña. Ingresarás con tu RUC.</span></label>
     <label>Régimen laboral<select id="rreg"></select></label>
     <label>Crea una contraseña (mín. 8 caracteres)<input id="rp1" type="password" minlength="8" autocomplete="new-password" required></label>
     <label>Repite la contraseña<input id="rp2" type="password" minlength="8" autocomplete="new-password" required></label>
@@ -246,7 +315,13 @@ const isAdmin=()=>ROLE==="admin";
 const canGest=()=>isAdmin()||(ROLE==="rep"&&permisoEf(emp(MYEMP))==="administrador");
 /** Permiso efectivo del representante: un suscriptor (no es cliente de la asesoría) siempre gestiona su cuenta como "administrador";
     en una empresa cliente vale el permiso que elige el administrador. Igual que public.permiso_efectivo() en supabase_migracion.sql */
-const permisoEf=e=>!e?"usuario":e.esCliente===false?"administrador":(e.permiso||"usuario");
+const permisoEf=e=>!e?"usuario":e.tipo==="cliente"?(e.permiso||"usuario"):"administrador";
+/** Tipo de cuenta de la empresa (igual que empresas.tipo_cuenta en supabase_migracion.sql):
+    cliente    → cliente de la asesoría; el administrador elige el permiso (usuario / administrador); sin límite de trabajadores.
+    suscriptor → maneja su propia cuenta como administrador; sin límite de trabajadores.
+    prueba     → como suscriptor, pero con máximo LIMITE_PRUEBA trabajadores. */
+const TIPOS_CUENTA=[["cliente","Cliente"],["suscriptor","Suscriptor"],["prueba","Prueba"]];
+const tipoDe=r=>["cliente","suscriptor","prueba"].includes(r.tipo_cuenta)?r.tipo_cuenta:r.es_cliente!==false?"cliente":r.suscripcion_activa===false?"prueba":"suscriptor";
 /** Agregar y editar trabajadores (también por carga masiva): el administrador y todo representante en su empresa.
     Igual que public.puede_editar_trabajadores() */
 const canTrab=()=>isAdmin()||(ROLE==="rep"&&!!MYEMP);
@@ -261,7 +336,7 @@ function q(fn){
   chainP=chainP.then(async()=>{setSync("Guardando…");const r=await fn();if(r&&r.error){setSync("⚠ Error al guardar");toast("No se pudo guardar: "+String(r.error.message).replace(/^LIMITE_PRUEBA:\s*/,""));return}setSync("✓ Guardado")}).catch(e=>{setSync("⚠ Error al guardar");toast("No se pudo guardar: "+(e.message||e))});
   return chainP;
 }
-const empRow=e=>({permiso:e.permiso||"usuario",suscripcion_activa:e.suscripcion!==false,es_cliente:e.esCliente!==false,id:e.id,ruc:e.ruc,razon:e.razon,direccion:e.direccion||"",regimen_id:e.regimenId,rubro:e.rubro||"",ciudad:e.ciudad||"",departamento:e.departamento||"",provincia:e.provincia||"",distrito:e.distrito||""});
+const empRow=e=>({permiso:e.permiso||"usuario",tipo_cuenta:e.tipo||"cliente",id:e.id,ruc:e.ruc,razon:e.razon,direccion:e.direccion||"",regimen_id:e.regimenId,rubro:e.rubro||"",ciudad:e.ciudad||"",departamento:e.departamento||"",provincia:e.provincia||"",distrito:e.distrito||""});
 const trabRow=w=>({id:w.id,empresa_id:w.empresaId,data:w,updated_at:new Date().toISOString()});
 function perRows(per){
   const out={};
@@ -318,7 +393,7 @@ async function loadAll(){
   const[aj,em,tr,pe]=await Promise.all([fetchAll("ajustes"),fetchAll("empresas"),fetchAll("trabajadores"),fetchAll("periodos",q=>q.eq("periodo",perSel))]);
   S=clone(DEF);
   aj.forEach(r=>{S[r.clave]=r.data});
-  S.empresas=em.map(r=>({id:r.id,ruc:r.ruc,razon:r.razon,direccion:r.direccion,regimenId:r.regimen_id,permiso:r.permiso||"usuario",suscripcion:r.suscripcion_activa!==false,esCliente:r.es_cliente!==false,origen:r.origen||"admin",rubro:r.rubro||"",ciudad:r.ciudad||"",departamento:r.departamento||"",provincia:r.provincia||"",distrito:r.distrito||""})).sort((a,b)=>a.razon.localeCompare(b.razon));
+  S.empresas=em.map(r=>({id:r.id,ruc:r.ruc,razon:r.razon,direccion:r.direccion,regimenId:r.regimen_id,permiso:r.permiso||"usuario",tipo:tipoDe(r),origen:r.origen||"admin",rubro:r.rubro||"",ciudad:r.ciudad||"",departamento:r.departamento||"",provincia:r.provincia||"",distrito:r.distrito||""})).sort((a,b)=>a.razon.localeCompare(b.razon));
   S.trabajadores=tr.map(r=>({...r.data,id:r.id,empresaId:r.empresa_id})).sort((a,b)=>nombreT(a).localeCompare(nombreT(b)));
   S.periodos={};PER_LOADED.clear();mergePer(pe);PER_LOADED.add(perSel);
   const before=JSON.stringify(S);migrate();
@@ -359,8 +434,12 @@ async function enter(user){
 async function doLogin(ev){
   ev.preventDefault();
   const u=$("#lu").value.trim(),p=$("#lp").value;
-  const email=/^\d{11}$/.test(u)?`${u}@${REP_DOMAIN}`:u;
   $("#lbtn").disabled=true;$("#lerr").textContent="";
+  // Con RUC: la base comprueba la contraseña y devuelve el correo de la cuenta (real o el interno RUC@…)
+  let email=u;
+  if(/^\d{11}$/.test(u)){const r=await sb.rpc("login_ruc",{p_ruc:u,p_password:p});
+    if(r.error&&!/function|schema cache|could not find/i.test(r.error.message)){$("#lbtn").disabled=false;$("#lerr").textContent=r.error.message;return}
+    email=(!r.error&&r.data)||`${u}@${REP_DOMAIN}`}
   const{data,error}=await sb.auth.signInWithPassword({email,password:p});
   if(error){$("#lbtn").disabled=false;const m=error.message||"";
     $("#lerr").textContent=/invalid login credentials/i.test(m)?"RUC/correo o contraseña incorrectos."
@@ -381,6 +460,9 @@ function conOjo(root){(root||document).querySelectorAll('input[type="password"]:
   w.appendChild(b)})}
 conOjo();new MutationObserver(()=>conOjo()).observe(document.body,{childList:true,subtree:true});
 /* ---------- Registro de cuentas de prueba ---------- */
+const correoOk=s=>/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(s||"")&&!String(s).toLowerCase().endsWith("@"+REP_DOMAIN);
+/** Correo real de la cuenta, o "" si aún usa el usuario interno RUC@empresa.planillas.pe */
+const correoReal=e=>e&&!String(e).toLowerCase().endsWith("@"+REP_DOMAIN)?e:"";
 /** Dígito verificador del RUC (módulo 11); la base de datos hace la misma validación */
 function rucValido(r){if(!/^(10|15|16|17|20)\d{9}$/.test(r))return false;const w=[5,4,3,2,7,6,5,4,3,2];
   let s=0;for(let i=0;i<10;i++)s+=+r[i]*w[i];let d=11-s%11;if(d===10)d=0;else if(d===11)d=1;return d===+r[10]}
@@ -390,7 +472,7 @@ function verPanel(k){const P={login:$("#login form"),reg:$("#freg"),rec:$("#frec
   if(k==="rec"){const u=$("#lu").value.trim();if(u.includes("@"))$("#rmail").value=u;$("#recmsg").innerHTML="";$("#rmail").focus()}}
 async function recuperar(ev){
   ev.preventDefault();const mail=$("#rmail").value.trim(),msg=$("#recmsg");
-  if(/^\d{11}$/.test(mail)||mail.endsWith("@"+REP_DOMAIN)){msg.innerHTML=`<div class="note">Las cuentas que ingresan con RUC no tienen correo. Pide al administrador una contraseña nueva.</div>`;return}
+  if(/^\d{11}$/.test(mail)||mail.toLowerCase().endsWith("@"+REP_DOMAIN)){msg.innerHTML=`<div class="note">Escribe el <b>correo</b> que registraste en tu cuenta, no tu RUC. Si nunca registraste uno, pide al administrador una contraseña nueva.</div>`;return}
   $("#recbtn").disabled=true;
   const{error}=await sb.auth.resetPasswordForEmail(mail,{redirectTo:location.origin+location.pathname});
   $("#recbtn").disabled=false;
@@ -411,16 +493,17 @@ function verRegistro(on){verPanel(on?"reg":"login");
   if(on){$("#rreg").innerHTML=DEF.config.regimenes.map(r=>`<option value="${r.id}">${esc(r.nombre)}${r.ventasUIT?` (ventas ≤ ${r.ventasUIT} UIT)`:""}</option>`).join("");$("#rruc").focus()}}
 async function registrar(ev){
   ev.preventDefault();
-  const ruc=$("#rruc").value.trim(),razon=$("#rrazon").value.trim(),reg=$("#rreg").value,p1=$("#rp1").value,p2=$("#rp2").value,err=$("#rerr2");
+  const ruc=$("#rruc").value.trim(),razon=$("#rrazon").value.trim(),mail=$("#rmail2").value.trim().toLowerCase(),reg=$("#rreg").value,p1=$("#rp1").value,p2=$("#rp2").value,err=$("#rerr2");
   err.textContent="";
   if(!rucValido(ruc))return err.textContent="El RUC no es válido. Revisa que tenga 11 dígitos y esté bien escrito.";
   if(razon.length<3)return err.textContent="Ingresa la razón social de tu empresa.";
+  if(!correoOk(mail))return err.textContent="Ingresa un correo electrónico válido.";
   if(p1.length<8)return err.textContent="La contraseña debe tener al menos 8 caracteres.";
   if(p1!==p2)return err.textContent="Las contraseñas no coinciden.";
   $("#rbtn").disabled=true;
-  const{error}=await sb.rpc("registrar_prueba",{p_ruc:ruc,p_razon:razon,p_regimen:reg,p_password:p1});
+  const{error}=await sb.rpc("registrar_prueba",{p_ruc:ruc,p_razon:razon,p_regimen:reg,p_password:p1,p_email:mail});
   if(error){$("#rbtn").disabled=false;err.textContent=/function|schema cache/i.test(error.message)?"El registro aún no está habilitado. Comunícate con el administrador.":error.message;return}
-  const{data,error:e2}=await sb.auth.signInWithPassword({email:`${ruc}@${REP_DOMAIN}`,password:p1});
+  const{data,error:e2}=await sb.auth.signInWithPassword({email:mail,password:p1});
   $("#rbtn").disabled=false;
   if(e2){verRegistro(false);$("#lu").value=ruc;$("#lerr").textContent="Tu cuenta se creó. Ingresa con tu RUC y contraseña.";return}
   tab="trabajadores";await enter(data.user);toast("¡Bienvenido! Tu cuenta de prueba está lista");
@@ -476,7 +559,7 @@ const trabEmp=()=>S.trabajadores.filter(w=>w.empresaId===empSel);
    Sin suscripción activa, la empresa puede registrar como máximo LIMITE_PRUEBA trabajadores (activos y cesados).
    La base de datos aplica el mismo límite (supabase_migracion.sql). El administrador no tiene límite. */
 const LIMITE_PRUEBA=2;
-const enPrueba=e=>!!e&&e.suscripcion===false;
+const enPrueba=e=>!!e&&e.tipo==="prueba";
 const nTrab=empId=>S.trabajadores.filter(w=>w.empresaId===empId).length;
 const bloqueaNuevo=empId=>!isAdmin()&&enPrueba(emp(empId))&&nTrab(empId)>=LIMITE_PRUEBA;
 const CONTACTO_CORREO="promeroasesoria@gmail.com";
@@ -706,7 +789,12 @@ window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(ROLE
 function go(t){if(!tabsRol().find(x=>x[0]===t))return;tab=t;try{location.hash=t}catch(e){};render()}
 /** "Dctos." es una sub-pestaña de Planilla mensual: no va en el menú superior (sigue accesible con #dcto) */
 const SUB_PLAN=["planilla","dcto"];
-function renderNav(){$("#nav").innerHTML=tabsRol().filter(t=>t[0]!=="cuenta"&&t[0]!=="dcto").map(([k,l])=>`<button class="${k===tab||(k==="planilla"&&SUB_PLAN.includes(tab))?"on":""}" onclick="go('${k}')">${l}</button>`).join("")}
+/** Menú principal. En celular se pliega tras el botón «Menú» (hamburguesa); en PC el botón no se muestra y las pestañas se ven igual que siempre */
+function renderNav(){const ts=tabsRol().filter(t=>t[0]!=="cuenta"&&t[0]!=="dcto"),act=ts.find(([k])=>k===tab||(k==="planilla"&&SUB_PLAN.includes(tab)));
+  $("#nav").classList.remove("open");
+  $("#nav").innerHTML=`<button type="button" class="navtog" aria-expanded="false" aria-controls="navlist" onclick="toggleNav()"><span class="hamb" aria-hidden="true"></span>Menú<b>${act?act[1]:""}</b></button>
+  <div class="navlist" id="navlist">${ts.map(([k,l])=>`<button class="${act&&act[0]===k?"on":""}" onclick="go('${k}')">${l}</button>`).join("")}</div>`}
+function toggleNav(){const n=$("#nav"),o=!n.classList.contains("open");n.classList.toggle("open",o);n.querySelector(".navtog").setAttribute("aria-expanded",String(o))}
 function subPlan(){const st=[["planilla","Principal"],...(tabsRol().some(t=>t[0]==="dcto")?[["dcto","Dctos."]]:[])];
   if(st.length<2)return"";   // perfil Usuario: solo «Principal», no hace falta la barra
   return`<div class="subnav" role="tablist" aria-label="Planilla mensual">${st.map(([k,l])=>`<button role="tab" aria-selected="${k===tab}" class="${k===tab?"on":""}" onclick="go('${k}')">${l}</button>`).join("")}</div>`}
@@ -739,8 +827,8 @@ function vTrab(){
     <div class="kpi"><div class="l">RMV vigente</div><div class="v">${S_(rmvAt())}</div></div>
     <div class="kpi"><div class="l">Asignación familiar (10% RMV)</div><div class="v">${S_(rmvAt()*0.1)}</div></div>
   </div>
-  ${enPrueba(E)?`<div class="note info" style="margin:0 0 16px">${isAdmin()?`Esta empresa está en <b>modo de prueba</b> (sin suscripción activa): su representante puede registrar hasta ${LIMITE_PRUEBA} trabajadores. Puedes activar la suscripción en <b>Empresas</b>.`
-    :`<b>Cuenta de prueba:</b> tienes acceso a todas las funciones y puedes registrar hasta ${LIMITE_PRUEBA} trabajadores (llevas ${nTrab(empSel)} de ${LIMITE_PRUEBA}). Para registrar más, activa tu suscripción.${contactoHTML()}`}</div>`:""}
+  ${enPrueba(E)?`<div class="note info" style="margin:0 0 16px">${isAdmin()?`Esta empresa es una <b>cuenta de prueba</b>: su representante puede registrar hasta ${LIMITE_PRUEBA} trabajadores. Puedes cambiar su tipo de cuenta a Cliente o Suscriptor en <b>Empresas</b>.`
+    :`<b>Cuenta de prueba:</b> tienes acceso a todas las funciones y puedes registrar hasta ${LIMITE_PRUEBA} trabajadores (llevas ${nTrab(empSel)} de ${LIMITE_PRUEBA}) y, en Honorarios 4ta, hasta ${LIMITE_PRUEBA} prestadores con ${LIMITE_PRUEBA} recibos cada uno. Para registrar más, activa tu suscripción.${contactoHTML()}`}</div>`:""}
   <div class="card">
     <div class="row" style="justify-content:space-between"><div><h2>Trabajadores</h2><p class="hint">Registra a cada trabajador con su régimen, sistema de pensiones, banco y conceptos remunerativos.</p></div>
     <div class="row"><input placeholder="Buscar DNI, nombre o puesto…" value="${esc(filtroT)}" oninput="filtroT=this.value;vTrabTable()" style="width:240px"><button class="btn" onclick="dlgCargaTrab()">Carga masiva de trabajadores</button><button class="btn pri" onclick="formTrab()">+ Nuevo trabajador</button></div></div>
@@ -1200,6 +1288,8 @@ function partesNombre(n){const[pat,resto]=splitApellidos(n),[mat,nom]=splitApell
 function partesNombreInv(n){const t=String(n||"").trim().split(/\s+/).filter(Boolean),grp=()=>{if(!t.length)return"";const g=[t.pop()];while(t.length&&PARTICULAS.has(t[t.length-1].toLowerCase()))g.unshift(t.pop());return g.join(" ")};
   const mat=grp(),pat=grp();return t.length?{apPat:pat,apMat:mat,nombres:t.join(" ")}:{apPat:mat,apMat:"",nombres:pat}}
 const claveRec=r=>`${r.tipo}${r.serie}-${r.numero}`;
+/* Cuenta de prueba: máximo LIMITE_PRUEBA prestadores y LIMITE_PRUEBA recibos por prestador (la BD lo valida también). */
+const limitaHon=empId=>!isAdmin()&&enPrueba(emp(empId));
 
 /* ---------- Importación y agrupación por prestador ---------- */
 async function importarRxH(files){
@@ -1208,6 +1298,7 @@ async function importarRxH(files){
   toast("Leyendo "+files.length+" archivo(s)…");
   try{await ensureHon(empSel)}catch(e){return toast("No se pudieron cargar los recibos: "+(e.message||e))}
   HON[empSel]=HON[empSel]||[];
+  const limHon=limitaHon(empSel);
   for(const file of files){
     let recs;try{recs=await leerArchivoRxH(file)}catch(e){res.err.push(`${file.name}: ${e.message||e}`);continue}
     for(const r of recs){
@@ -1217,6 +1308,10 @@ async function importarRxH(files){
       if(r.receptorRuc&&E.ruc&&r.receptorRuc!==E.ruc){res.omit.push(`${ref}: ${num} fue emitido a otro RUC (${r.receptorRuc}${r.receptor?" – "+r.receptor:""}), no a ${E.razon.replace(/\.$/,"")}.`);continue}
       let p=HON[empSel].find(x=>x.ruc===r.ruc);
       const partes=r.nombreInvertido?partesNombreInv(r.nombre):partesNombre(r.nombre);
+      if(limHon){
+        if(!p&&HON[empSel].length>=LIMITE_PRUEBA){res.omit.push(`${ref}: ${num} de ${r.nombre||r.ruc} no se importó porque la cuenta de prueba permite hasta ${LIMITE_PRUEBA} prestadores.`);continue}
+        if(p&&!p.recibos.some(x=>claveRec(x)===`${r.tipo}${r.serie}-${r.numero}`)&&p.recibos.length>=LIMITE_PRUEBA){res.omit.push(`${ref}: ${num} no se importó porque la cuenta de prueba permite hasta ${LIMITE_PRUEBA} recibos por prestador (${p.nombre||p.ruc} ya tiene ${p.recibos.length}).`);continue}
+      }
       if(!p){p={id:`${empSel}:${r.ruc}`,empresaId:empSel,ruc:r.ruc,nombre:r.nombre,nombreInvertido:!!r.nombreInvertido,...partes,domiciliado:"1",convenio:"0",nombreConfirmado:false,recibos:[]};HON[empSel].push(p)}
       // Se prefiere el nombre en el orden de SUNAT (APELLIDOS NOMBRES) del TXT, XML o PDF nuevo
       if(r.nombre&&(!p.nombre||(p.nombreInvertido&&!r.nombreInvertido))){p.nombre=r.nombre;p.nombreInvertido=!!r.nombreInvertido;if(!p.nombreConfirmado)Object.assign(p,partes)}
@@ -1257,6 +1352,8 @@ function vHon(){
    <div class="row"><label>Periodo<input type="month" id="hper" value="${perSel}" onchange="perSel=this.value;vHon()"></label>
    <label class="btn pri" style="flex-direction:row">Importar recibos (.txt, .xml, .pdf)<input type="file" id="hfile" accept=".txt,.xml,.pdf" multiple hidden onchange="importarRxH([...this.files]);this.value=''"></label>
    <button class="btn" onclick="dlgPs4()">Archivos PLAME 4ta</button></div></div></div>
+  ${enPrueba(emp(empSel))?`<div class="note info" style="margin:0 0 16px">${isAdmin()?`Esta empresa es una <b>cuenta de prueba</b>: su representante puede registrar hasta ${LIMITE_PRUEBA} prestadores y ${LIMITE_PRUEBA} recibos por prestador.`
+    :`<b>Cuenta de prueba:</b> puedes registrar hasta ${LIMITE_PRUEBA} prestadores de 4ta y ${LIMITE_PRUEBA} recibos por prestador (llevas ${prestadores().length} de ${LIMITE_PRUEBA} prestadores). Para registrar más, activa tu suscripción.${contactoHTML()}`}</div>`:""}
   <div class="kpis"><div class="kpi"><div class="l">Prestadores</div><div class="v">${ps.length}</div></div><div class="kpi"><div class="l">Recibos</div><div class="v">${all.length}</div></div>
    <div class="kpi"><div class="l">Total honorarios</div><div class="v">${S_(T("bruto"))}</div></div><div class="kpi"><div class="l">Retenciones 4ta (8%)</div><div class="v">${S_(T("retencion"))}</div></div><div class="kpi"><div class="l">Neto</div><div class="v">${S_(T("neto"))}</div></div></div>
   ${Object.keys(otros).length?`<div class="row" style="gap:6px;margin:-4px 0 14px;align-items:center"><span class="hint" style="margin:0">Recibos en otros meses:</span>${Object.keys(otros).sort().reverse().map(k=>`<button class="btn sm" onclick="perSel='${k}';vHon()">${MESES[+k.slice(5)-1].slice(0,3)} ${k.slice(0,4)} (${otros[k]})</button>`).join("")}</div>`:""}
@@ -1878,19 +1975,21 @@ function addRmv(){const d=$("#nrd").value,m=num($("#nrm").value);if(!d||!(m>0))r
 function vEmp(){
   $("#main").innerHTML=`<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Empresas</h2><p class="hint">Cada empresa tiene su RUC (único), razón social y régimen laboral. Sus trabajadores, planillas y beneficios se manejan por separado; cambia de empresa con el selector de la parte superior. Con <b>Crear acceso</b> le das al representante legal una contraseña para que ingrese con el RUC (solo lectura).</p></div>
    <button class="btn pri" onclick="formEmp()">+ Nueva empresa</button></div>
-   ${!S.empresas.length?`<div class="empty">Aún no hay empresas registradas.</div>`:`<table><thead><tr><th>RUC</th><th>Razón social</th><th>Rubro / dirección</th><th>Régimen laboral</th><th class="n">Trabajadores</th><th>Es cliente</th><th>Suscripción</th><th>Acceso rep. legal</th><th></th></tr></thead><tbody>
+   ${!S.empresas.length?`<div class="empty">Aún no hay empresas registradas.</div>`:`<table><thead><tr><th>RUC</th><th>Razón social</th><th>Rubro / dirección</th><th>Régimen laboral</th><th class="n">Trabajadores</th><th>Tipo de cuenta</th><th>Acceso rep. legal</th><th></th></tr></thead><tbody>
    ${S.empresas.map(e=>`<tr ${e.id===empSel?'style="background:var(--pri-soft)"':""}><td><b>${esc(e.ruc)}</b></td><td>${esc(e.razon)}</td><td>${esc(e.rubro||"")}<div class="hint" style="margin:0">${esc(dirEmp(e))}</div></td><td><span class="tag">${esc(reg(e.regimenId).nombre)}</span></td>
     <td class="n">${S.trabajadores.filter(w=>w.empresaId===e.id&&w.activo!==false).length}${enPrueba(e)?`<div class="hint" style="margin:0">${nTrab(e.id)} de ${LIMITE_PRUEBA} registrados</div>`:""}</td>
-    <td style="white-space:nowrap"><label class="chk" title="${e.esCliente===false?"Suscriptor: el propio usuario maneja su cuenta con permisos de Administrador":"Cliente de la asesoría: su representante tiene el permiso que elijas"}"><input type="checkbox" id="cli-${e.id}" ${e.esCliente!==false?"checked":""} onchange="setEsCliente('${e.id}',this.checked)"> Es cliente</label>${e.esCliente===false?'<div class="hint" style="margin:0">Suscriptor</div>':""}</td>
-    <td style="white-space:nowrap"><label class="chk" title="Sin suscripción activa, la empresa solo puede registrar ${LIMITE_PRUEBA} trabajadores"><input type="checkbox" id="susc-${e.id}" ${e.suscripcion!==false?"checked":""} onchange="setSuscripcion('${e.id}',this.checked)"> Suscripción activa</label>${e.origen==="prueba"?'<span class="tag warn" title="Cuenta creada por el propio usuario desde la pantalla de ingreso">Registro de prueba</span>':""}</td>
+    <td style="white-space:nowrap"><select id="tipo-${e.id}" aria-label="Tipo de cuenta de ${esc(e.razon)}" title="${esc(TIPO_TXT[e.tipo]||"")}" onchange="setTipoCuenta('${e.id}',this.value)">${TIPOS_CUENTA.map(([v,l])=>`<option value="${v}" ${v===e.tipo?"selected":""}>${l}</option>`).join("")}</select>${e.origen==="prueba"?'<div class="hint" style="margin:2px 0 0" title="Cuenta creada por el propio usuario desde la pantalla de ingreso">Se registró solo</div>':""}</td>
     <td>${REPS.has(e.id)?'<span class="tag ok">Activo</span>':'<span class="tag warn">Sin acceso</span>'} <span class="tag" title="Permiso efectivo del representante">${permisoEf(e)==="administrador"?"Administrador":"Usuario"}</span> <button class="btn sm" onclick="formAcceso('${e.id}')">${REPS.has(e.id)?"Cambiar contraseña":"Crear acceso"}</button></td>
     <td style="white-space:nowrap">${e.id===empSel?'<span class="tag ok">Seleccionada</span>':`<button class="btn sm" onclick="setEmp('${e.id}')">Seleccionar</button>`} <button class="btn sm" onclick="formEmp('${e.id}')">Editar</button> <button class="btn sm bad" onclick="delEmp('${e.id}')">Eliminar</button></td></tr>`).join("")}
    </tbody></table>`}</div>`;
 }
-function setEsCliente(id,on){if(!isAdmin())return;const e=emp(id);e.esCliente=on;persist("empresas");vEmp();
-  toast(on?`${e.razon} es cliente: su representante tiene permiso «${e.permiso==="administrador"?"Administrador":"Usuario"}»`:`${e.razon} es suscriptor: su representante gestiona la cuenta como Administrador`)}
-function setSuscripcion(id,on){if(!isAdmin())return;const e=emp(id);e.suscripcion=on;persist("empresas");vEmp();
-  toast(on?`Suscripción activada: ${e.razon} ya puede registrar más de ${LIMITE_PRUEBA} trabajadores`:`Suscripción desactivada: ${e.razon} queda limitada a ${LIMITE_PRUEBA} trabajadores`)}
+const TIPO_TXT={
+  cliente:"Cliente de la asesoría: su representante tiene el permiso que elijas (Usuario o Administrador). Sin límite de trabajadores.",
+  suscriptor:"Suscriptor: el propio usuario maneja su cuenta como Administrador, incluido el cálculo de su planilla. Sin límite de trabajadores.",
+  prueba:`Prueba: igual que un suscriptor, pero puede registrar como máximo ${LIMITE_PRUEBA} trabajadores, ${LIMITE_PRUEBA} prestadores de 4ta y ${LIMITE_PRUEBA} recibos por prestador.`};
+function setTipoCuenta(id,v){if(!isAdmin()||!TIPO_TXT[v])return;const e=emp(id);e.tipo=v;persist("empresas");vEmp();
+  toast(v==="cliente"?`${e.razon} ahora es cliente: su representante tiene permiso «${e.permiso==="administrador"?"Administrador":"Usuario"}»`
+    :v==="suscriptor"?`${e.razon} ahora es suscriptor: sin límite de trabajadores`:`${e.razon} ahora es cuenta de prueba: máximo ${LIMITE_PRUEBA} trabajadores y ${LIMITE_PRUEBA} prestadores de 4ta`)}
 function permTxt(v){return v==="administrador"
   ?"<b>Administrador:</b> agrega, edita y elimina trabajadores; procesa el cálculo de la planilla (Dctos., ajustes, carga masiva, generar y anular); actualiza los datos de su empresa y carga recibos por honorarios. No modifica parámetros del sistema."
   :"<b>Usuario:</b> agrega y edita trabajadores, ve la planilla y los beneficios, y descarga boletas y reportes. No puede modificar el cálculo de la planilla."}
@@ -1908,19 +2007,17 @@ function formEmp(id){
      <option value="usuario" ${(e.permiso||"usuario")==="usuario"?"selected":""}>Usuario</option>
      <option value="administrador" ${e.permiso==="administrador"?"selected":""}>Administrador</option></select>
      <span class="hint" id="permtxt" style="margin:0">${permTxt(e.permiso||"usuario")}</span></label>
-   ${ro?"":`<label class="chk" style="align-self:center"><input type="checkbox" name="suscripcion" ${e.suscripcion!==false?"checked":""}> Suscripción activa <span class="hint" style="margin:0">(sin ella: máximo ${LIMITE_PRUEBA} trabajadores)</span></label>
-   <div style="grid-column:1/-1"><label class="chk"><input type="checkbox" name="esCliente" ${e.esCliente!==false?"checked":""} onchange="onEsCliente(this.form)"> Es cliente de la asesoría</label>
-     <span class="hint" id="clitxt" style="margin:2px 0 0;display:block"></span></div>`}
+   ${ro?"":`<label>Tipo de cuenta<select name="tipo" onchange="onTipoCuenta(this.form)">${TIPOS_CUENTA.map(([v,l])=>`<option value="${v}" ${v===(e.tipo||"cliente")?"selected":""}>${l}</option>`).join("")}</select>
+     <span class="hint" id="clitxt" style="margin:0"></span></label>`}
    <label>Régimen laboral *<select name="regimenId" ${ro}>${S.config.regimenes.map(r=>`<option value="${r.id}" ${r.id===e.regimenId?"selected":""}>${esc(r.nombre)}${r.ventasUIT?` (ventas ≤ ${r.ventasUIT} UIT)`:""}</option>`).join("")}</select></label>
    </div>${id&&S.trabajadores.some(w=>w.empresaId===id)?`<div class="note">Si cambias el régimen, la planilla y los beneficios de todos sus trabajadores se recalcularán con el nuevo régimen.</div>`:""}
    <div id="eerr" class="err"></div>
    <div class="dlg-foot"><button type="button" class="btn" onclick="closeDlg()">Cancelar</button><button class="btn pri">Guardar empresa</button></div></form>`);
-  if(isAdmin())onEsCliente($("#fe"));
+  if(isAdmin())onTipoCuenta($("#fe"));
 }
-/** Suscriptor (no cliente): su representante siempre gestiona la cuenta como administrador; el selector de permiso no aplica */
-function onEsCliente(f){const cli=f.esCliente.checked;f.permiso.disabled=!cli;
-  $("#clitxt").innerHTML=cli?"Cliente de la asesoría: su representante tiene el permiso que elijas arriba (Usuario: solo trabajadores; Administrador: también el cálculo de la planilla)."
-    :"<b>Suscriptor:</b> el propio usuario maneja su cuenta como <b>Administrador</b>, incluido el cálculo de su planilla (sin acceso a parámetros del sistema).";
+/** Solo en una cuenta Cliente se elige el permiso; Suscriptor y Prueba gestionan siempre como administrador */
+function onTipoCuenta(f){const cli=f.tipo.value==="cliente";f.permiso.disabled=!cli;
+  $("#clitxt").textContent=TIPO_TXT[f.tipo.value]||"";
   $("#permtxt").innerHTML=permTxt(cli?f.permiso.value:"administrador")}
 async function saveEmp(id){const f=$("#fe");
   if(!isAdmin()){   // administrador de empresa: solo rubro, dirección y ubicación, vía función segura del servidor
@@ -1928,7 +2025,7 @@ async function saveEmp(id){const f=$("#fe");
     const{error}=await sb.rpc("emp_actualizar_datos",{p_rubro:d.rubro,p_direccion:d.direccion,p_departamento:d.departamento,p_provincia:d.provincia,p_distrito:d.distrito,p_ciudad:d.ciudad});
     if(error){$("#eerr").textContent="No se pudo guardar: "+error.message;return}
     Object.assign(emp(MYEMP),d);closeDlg();render();toast("Datos de la empresa actualizados");return}
-  const o={permiso:f.permiso.value,suscripcion:f.suscripcion.checked,esCliente:f.esCliente.checked,ruc:f.ruc.value.trim(),razon:f.razon.value.trim(),direccion:f.direccion.value.trim(),regimenId:f.regimenId.value,rubro:f.rubro.value.trim(),ciudad:f.ciudad.value.trim(),...ubiVals(f)};
+  const o={permiso:f.permiso.value,tipo:f.tipo.value,ruc:f.ruc.value.trim(),razon:f.razon.value.trim(),direccion:f.direccion.value.trim(),regimenId:f.regimenId.value,rubro:f.rubro.value.trim(),ciudad:f.ciudad.value.trim(),...ubiVals(f)};
   const err=[];
   if(!/^(10|15|16|17|20)\d{9}$/.test(o.ruc))err.push("El RUC debe tener 11 dígitos y empezar con 10, 15, 16, 17 o 20.");
   if(S.empresas.some(e=>e.ruc===o.ruc&&e.id!==id))err.push("Ya existe una empresa registrada con ese RUC.");
@@ -1948,22 +2045,27 @@ function genPass(){const c="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz2345
 function formAcceso(id){
   const e=emp(id),tiene=REPS.has(id);
   openDlg(`<h2>Acceso del representante legal</h2>
-  <p><b>${esc(e.razon)}</b><br><span class="hint">El representante ingresa con el RUC como usuario. Solo puede ver la información de esta empresa y descargar boletas; no puede modificar nada.</span></p>
+  <p><b>${esc(e.razon)}</b><br><span class="hint">El representante ingresa con el RUC como usuario y solo ve la información de esta empresa. Lo que puede hacer depende de su permiso (${permisoEf(e)==="administrador"?"Administrador":"Usuario"}).</span></p>
   <div class="grid"><label>Usuario (RUC)<input value="${esc(e.ruc)}" disabled></label>
-  <label>${tiene?"Nueva contraseña":"Contraseña"} (mín. 8 caracteres)<input id="ap" type="text" minlength="8" autocomplete="off"></label></div>
+  <label>${tiene?"Nueva contraseña":"Contraseña"} (mín. 8 caracteres)<input id="ap" type="text" minlength="8" autocomplete="off"></label>
+  <label style="grid-column:1/-1">Correo del representante (para recuperar su contraseña)<input id="amail" type="email" autocomplete="off" placeholder="${tiene?"Cargando…":"Opcional, recomendado"}"><span class="hint" style="margin:0">Si lo dejas vacío, se conserva el que ya tenga.</span></label></div>
   <div class="row" style="margin-top:8px"><button class="btn sm" onclick="$('#ap').value=genPass()">Generar contraseña segura</button></div>
   <div id="aerr" class="err" style="margin-top:8px"></div><div id="aok"></div>
   <div class="dlg-foot">${tiene?`<button class="btn bad" style="margin-right:auto" onclick="quitarAcceso('${id}')">Quitar acceso</button>`:""}
   <button class="btn" onclick="closeDlg()">Cerrar</button><button class="btn pri" id="abtn" onclick="guardarAcceso('${id}')">${tiene?"Cambiar contraseña":"Crear acceso"}</button></div>`);
+  if(tiene)sb.rpc("admin_correo_rep",{p_empresa:id}).then(({data,error})=>{const i=$("#amail");if(!i)return;
+    i.placeholder=error?"Opcional":data?"":"Sin correo registrado";if(!error&&data)i.value=data});
 }
 async function guardarAcceso(id){
-  const pw=$("#ap").value.trim();if(pw.length<8){$("#aerr").textContent="La contraseña debe tener al menos 8 caracteres.";return}
+  const pw=$("#ap").value.trim(),mail=$("#amail").value.trim().toLowerCase();
+  if(pw.length<8){$("#aerr").textContent="La contraseña debe tener al menos 8 caracteres.";return}
+  if(mail&&!correoOk(mail)){$("#aerr").textContent="El correo no es válido.";return}
   $("#abtn").disabled=true;$("#aerr").textContent="";
-  const{error}=await sb.rpc("admin_set_rep_password",{p_empresa:id,p_password:pw});
+  const{error}=await sb.rpc("admin_set_rep_password",{p_empresa:id,p_password:pw,p_email:mail||null});
   $("#abtn").disabled=false;
-  if(error){$("#aerr").textContent=error.message;return}
+  if(error){$("#aerr").textContent=/could not find|schema cache/i.test(error.message)?"Falta ejecutar la última versión de supabase_migracion.sql en Supabase.":error.message;return}
   REPS.add(id);const e=emp(id);
-  const txt=`Acceso a PlanillaPRo - Perú\nEmpresa: ${e.razon}\nUsuario (RUC): ${e.ruc}\nContraseña: ${pw}\nDirección web: ${location.origin+location.pathname}`;
+  const txt=`Acceso a PlanillaPRo - Perú\nEmpresa: ${e.razon}\nUsuario (RUC): ${e.ruc}\nContraseña: ${pw}${mail?`\nCorreo registrado (para recuperar la contraseña): ${mail}`:""}\nDirección web: ${location.origin+location.pathname}`;
   $("#aok").innerHTML=`<div class="note info" style="white-space:pre-line">✓ Acceso listo. Entrega estos datos al representante legal:\n\n${esc(txt)}</div><button class="btn sm" id="cpy">Copiar datos</button>`;
   $("#cpy").onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast("Copiado")}catch(x){toast("No se pudo copiar")}};
   vEmp();
@@ -1982,7 +2084,20 @@ function vCuenta(){
    <label>Contraseña actual<input type="password" name="a" autocomplete="current-password" required></label>
    <label>Nueva contraseña (mín. 8 caracteres)<input type="password" name="n" minlength="8" autocomplete="new-password" required></label>
    <label>Repite la nueva contraseña<input type="password" name="r" minlength="8" autocomplete="new-password" required></label>
-   <div id="perr" class="err"></div><div><button class="btn pri" id="pbtn">Cambiar contraseña</button></div></form></div>`;
+   <div id="perr" class="err"></div><div><button class="btn pri" id="pbtn">Cambiar contraseña</button></div></form></div>
+  ${isAdmin()?"":`<div class="card" style="max-width:520px"><h2>Correo para recuperar tu contraseña</h2>
+   <p class="hint">${correoReal(ME.email)?`Si olvidas tu contraseña, te enviaremos el enlace a <b>${esc(ME.email)}</b>. Sigues ingresando con tu RUC.`:`<span style="color:var(--warn)">Aún no registras un correo.</span> Regístralo para poder recuperar tu contraseña sin pedírsela al administrador. Sigues ingresando con tu RUC.`}</p>
+   <form id="fmail" onsubmit="event.preventDefault();guardarMiCorreo()" style="display:flex;flex-direction:column;gap:12px">
+    <label>Correo electrónico<input type="email" name="m" id="mcorreo" autocomplete="email" value="${esc(correoReal(ME.email))}" required></label>
+    <div id="merr" class="err"></div><div><button class="btn pri" id="mbtn">${correoReal(ME.email)?"Cambiar correo":"Registrar correo"}</button></div></form></div>`}`;
+}
+async function guardarMiCorreo(){
+  const v=$("#mcorreo").value.trim().toLowerCase();$("#merr").textContent="";
+  if(!correoOk(v))return $("#merr").textContent="Ingresa un correo electrónico válido.";
+  if(v===String(ME.email).toLowerCase())return toast("Ese ya es tu correo registrado");
+  $("#mbtn").disabled=true;const{error}=await sb.rpc("cambiar_mi_correo",{p_email:v});$("#mbtn").disabled=false;
+  if(error)return $("#merr").textContent=/function|schema cache/i.test(error.message)?"Esta opción aún no está habilitada. Comunícate con el administrador.":error.message;
+  ME.email=v;vCuenta();toast("Correo registrado. Ya puedes recuperar tu contraseña con él.");
 }
 async function cambiarPass(){
   const f=$("#fp"),a=f.a.value,n=f.n.value,r=f.r.value;

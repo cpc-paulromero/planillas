@@ -47,7 +47,7 @@ Todos entran por la misma pantalla. Un **correo** identifica al administrador y 
 | Ver todas las empresas | ✅ | – | – |
 | Ver su propia empresa, sus trabajadores, planilla y beneficios | ✅ | ✅ | ✅ |
 | Descargar boletas, planilla, AFPnet y PLAME | ✅ | ✅ | ✅ |
-| Crear, editar y eliminar empresas; marcar «Es cliente» y «Suscripción activa» | ✅ | – | – |
+| Crear, editar y eliminar empresas; elegir su **tipo de cuenta** | ✅ | – | – |
 | Editar rubro, dirección y ubicación de su empresa | ✅ | ✅ | – |
 | Agregar y editar trabajadores (incluida la carga masiva) | ✅ | ✅ | ✅ |
 | Eliminar trabajadores | ✅ | ✅ | – |
@@ -58,33 +58,54 @@ Todos entran por la misma pantalla. Un **correo** identifica al administrador y 
 | Cambiar su propia contraseña | ✅ | ✅ | ✅ |
 
 **Permiso efectivo del representante:**
-- Empresa **cliente** de la asesoría («Es cliente» marcado): tiene el permiso que elige el administrador ("usuario" o "administrador").
-- Empresa **suscriptora** («Es cliente» sin marcar): el propio usuario maneja su cuenta, siempre con permiso "administrador".
-- Las **cuentas de prueba** se registran como suscriptoras. Sin «Suscripción activa», pueden registrar como máximo 2 trabajadores.
+Cada empresa tiene un **tipo de cuenta**, que el administrador general elige en *Empresas*:
+
+| Tipo de cuenta | Permiso del representante | Límite de trabajadores | Límite en Honorarios 4ta |
+|---|---|---|---|
+| **Cliente** (de la asesoría) | El que elige el administrador: "usuario" o "administrador" | Sin límite | Sin límite |
+| **Suscriptor** | Siempre "administrador": maneja su propia cuenta, incluido el cálculo de su planilla | Sin límite | Sin límite |
+| **Prueba** (quien se registra solo) | Siempre "administrador", como en la demo | **Máximo 2** (activos y cesados) | **Máximo 2 prestadores** y **2 recibos por prestador** |
+
+Los límites de la cuenta de prueba se validan en la app y en la base de datos (triggers), así que tampoco se pueden superar con cargas masivas de .xlsx, .txt, .xml o .pdf.
+
+Los prestadores de 4ta categoría (Honorarios 4ta) los editan el administrador general, el cliente con perfil "administrador", el suscriptor y la cuenta de prueba.
 
 La base de datos aplica la misma matriz (`supabase_migracion.sql`). Además tiene candados que impiden que un representante "usuario" modifique el cálculo de la planilla, o que cualquier representante cambie los parámetros del sistema, aunque existan reglas antiguas más amplias.
 
 ### Cuentas de prueba y suscripción
 
 - En la pantalla de ingreso, **Crear cuenta de prueba** permite que cualquier persona se registre con el RUC de su empresa (se valida el dígito verificador), su razón social, su régimen laboral y una contraseña.
-- La cuenta de prueba queda como empresa **suscriptora** (no cliente): tiene los mismos accesos que un representante con permiso "administrador", pero su empresa **puede registrar como máximo 2 trabajadores** (activos y cesados). Al intentar registrar un tercero, la app muestra los datos de contacto.
-- En **Empresas**, el administrador marca o desmarca **Suscripción activa** en cada empresa. Con la suscripción activa no hay límite de trabajadores. Las cuentas creadas por registro aparecen con la etiqueta "Registro de prueba".
+- La cuenta queda con tipo **Prueba**: tiene los mismos accesos que un representante con permiso "administrador", pero su empresa **puede registrar como máximo 2 trabajadores** (activos y cesados). Al intentar registrar un tercero, la app muestra los datos de contacto.
+- En **Empresas**, el administrador cambia el **tipo de cuenta** directamente en la lista. Al pasarla a *Cliente* o *Suscriptor* desaparece el límite. Las cuentas creadas por registro muestran la nota "Se registró solo".
 - El límite y la suscripción los controla la base de datos (`supabase_migracion.sql`): un representante no puede saltarse el límite ni activarse la suscripción. Las empresas que existían antes de ejecutar el script quedan con suscripción activa.
 
 ### Recuperar contraseña
 
-- **¿Olvidaste tu contraseña?** envía un enlace al correo de quien ingresa con correo (el administrador). Al abrirlo, la app pide la nueva contraseña.
-- Las cuentas que ingresan con RUC no tienen correo: el administrador les asigna una contraseña nueva en *Empresas → Cambiar contraseña*.
+- **¿Olvidaste tu contraseña?** funciona para **todos los usuarios**. Cada uno escribe su correo registrado y recibe un enlace; al abrirlo, la app pide la nueva contraseña.
+- Los representantes **siguen ingresando con su RUC**. Su correo registrado es el de su cuenta, y la base de datos solo lo usa para iniciar la sesión cuando la contraseña es correcta. Así nadie puede averiguar el correo de un cliente con su RUC. Además, tras 10 intentos fallidos el RUC queda bloqueado 15 minutos.
+- **Dónde se registra el correo:**
+  - Cuentas de prueba: es obligatorio al registrarse.
+  - Representantes que ya existían: el administrador lo agrega en *Empresas → Crear acceso / Cambiar contraseña*, o el propio usuario lo registra en *Mi cuenta → Correo para recuperar tu contraseña*.
+  - Quien aún no tiene correo sigue ingresando normalmente con su RUC; para recuperar su contraseña debe pedírsela al administrador.
 - Configuración necesaria en Supabase:
   1. **Authentication → URL Configuration:** en *Site URL* y en *Redirect URLs* agrega la dirección de la app (por ejemplo `https://TU-USUARIO.github.io/planillas/`).
   2. **Authentication → Emails → SMTP Settings:** configura un servidor SMTP propio (Gmail con contraseña de aplicación, Brevo, Resend, etc.). El servicio de correo incluido en Supabase solo envía a los miembros del equipo del proyecto y tiene un límite muy bajo.
+
+### Uso en celular
+
+La app se adapta a pantallas de hasta 760 px de ancho sin cambiar la vista de PC:
+- el menú principal se pliega en un botón **Menú** (hamburguesa);
+- las sub-pestañas Principal / Dctos. ocupan el ancho;
+- las tablas anchas se desplazan horizontalmente dentro de su recuadro, con la primera columna fija;
+- los formularios pasan a una columna;
+- las ventanas (carga masiva, fichas, PLAME, AFPnet) ocupan toda la pantalla, con los botones siempre visibles abajo.
 
 ## Pantallas
 
 | Pestaña | Quién la ve | Qué hace |
 |---|---|---|
 | **Ingreso** | Todos | Inicio de sesión con correo o RUC. Muestra mensajes claros si la contraseña es incorrecta o falla la conexión. |
-| **Empresas** | Administrador | Lista de empresas (RUC, razón social, régimen laboral). Crear, editar, eliminar, seleccionar la empresa activa y gestionar el acceso del representante legal. Las casillas **Es cliente** y **Suscripción activa** se marcan directamente en la lista. |
+| **Empresas** | Administrador | Lista de empresas (RUC, razón social, régimen laboral). Crear, editar, eliminar, seleccionar la empresa activa y gestionar el acceso del representante legal. El **tipo de cuenta** (Cliente, Suscriptor o Prueba) se elige directamente en la lista. |
 | **Trabajadores** | Todos | Ficha de cada trabajador: DNI, nombres, puesto, pensión (ONP o AFP), salud, remuneración, banco y cuenta. Historial de aumentos con el mes desde el que rigen. Avisa si el sueldo es menor a la RMV vigente, salvo en contratos a tiempo parcial. **Carga masiva** desde Excel con su formato descargable: agrega trabajadores nuevos sin tocar a los registrados (opcionalmente los actualiza) y entrega un .txt con las filas observadas. |
 | **Planilla mensual › Principal** | Todos | Cálculo del mes por trabajador: ingresos, ONP o AFP (aporte, prima y comisión), renta de 5ta categoría, faltas, otros descuentos, neto y aportes del empleador (EsSalud, SIS, SCTR, Vida Ley, provisiones de gratificación, CTS y vacaciones). Boletas en PDF, exportación a Excel (CSV) y archivo de pagos para el banco. **Carga masiva de planilla** desde Excel, vinculada por N° de documento: carga días, vacaciones, tardanzas, horas extras, bonificaciones, movilidad y descuentos; nunca EsSalud, AFP, ONP ni 5ta, que siempre calcula la app. Entrega un .txt con los trabajadores no registrados. |
 | **Planilla mensual › Dctos.** (sub-pestaña) | Administrador y rep. con permiso | Hoja del mes para registrar días de vacaciones, faltas, tardanzas, adelantos y retenciones judiciales. Por cada falta sugiere descontar el día más 1/6 del descanso semanal. Se descarga en PDF. |
@@ -153,7 +174,7 @@ Funciones y triggers:
    - las columnas de `empresas` (`permiso`, `rubro`, ubicación, `suscripcion_activa`, `origen`);
    - la función `emp_actualizar_datos`;
    - las reglas para que los representantes escriban trabajadores y datos del mes;
-   - las cuentas de prueba (`registrar_prueba` y límite de 2 trabajadores);
+   - las cuentas de prueba (`registrar_prueba`, límite de 2 trabajadores y de 2 prestadores de 4ta con 2 recibos cada uno);
    - la tabla `prestadores4ta` de recibos por honorarios.
 
    No borra datos y se puede ejecutar más de una vez. Si tu base ya tenía alguna de estas piezas, se conserva.
