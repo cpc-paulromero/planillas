@@ -1318,8 +1318,8 @@ async function importarRxH(files){
       const rec={tipo:r.tipo,serie:r.serie,numero:r.numero,fechaEmision:r.fechaEmision,bruto:r.bruto,retencion:r.retencion,neto:r.neto,
         descripcion:r.descripcion,observacion:r.observacion,moneda:r.moneda,origen:r.origen,archivo:r.archivo};
       const k=claveRec(rec),old=p.recibos.find(x=>claveRec(x)===k);
-      if(old){Object.assign(old,rec,{fechaPago:old.fechaPago,pension:old.pension,aporte:old.aporte});res.act++}
-      else{p.recibos.push({...rec,fechaPago:rec.fechaEmision,pension:"3",aporte:""});res.nuevos++}
+      if(old){Object.assign(old,rec,{fechaPago:old.fechaPago,retIR:old.retIR});res.act++}
+      else{p.recibos.push({...rec,fechaPago:rec.fechaEmision});res.nuevos++}
       const per=(old||rec).fechaPago?.slice(0,7)||rec.fechaEmision.slice(0,7);meses[per]=(meses[per]||0)+1;
       tocados.add(p);const g=res.grupos[p.ruc]=res.grupos[p.ruc]||{p,n:0,bruto:0};g.n++;g.bruto=r2(g.bruto+rec.bruto);
     }
@@ -1360,12 +1360,11 @@ function vHon(){
   ${!ps.length?`<div class="card"><div class="empty">No hay recibos con fecha de pago en ${MESES[m-1]} ${y}. Pulsa <b>Importar recibos</b> para cargarlos.</div></div>`:ps.map(({p,rs})=>`<div class="card">
    <div class="row" style="justify-content:space-between;align-items:center"><div><b>${esc(p.nombre||"(sin nombre)")}</b> <span class="hint">RUC ${esc(p.ruc)} · ${p.domiciliado==="2"?"No domiciliado":"Domiciliado"}</span>${p.nombreConfirmado?"":' <span class="tag warn" title="Confirma apellidos y nombres para la PLAME">Revisar nombre</span>'}</div>
    <button class="btn sm" onclick="formPrest('${esc(p.id)}')">Datos del prestador</button></div>
-   <div class="scroll" style="margin-top:8px"><table><thead><tr><th>Comprobante</th><th>Emisión</th><th>Fecha de pago</th><th>Descripción</th><th class="n">Honorarios</th><th class="n">Retención</th><th class="n">Neto</th><th>Retención pensionaria</th><th>Origen</th><th></th></tr></thead><tbody>
+   <div class="scroll" style="margin-top:8px"><table><thead><tr><th>Comprobante</th><th>Emisión</th><th>Fecha de pago</th><th>Descripción</th><th class="n">Honorarios</th><th class="n">Retención</th><th class="n">Neto</th><th title="Indicador de retención del Impuesto a la Renta de 4ta categoría para la PLAME">Retención IR 4ta</th><th>Origen</th><th></th></tr></thead><tbody>
    ${rs.map(({r,i})=>`<tr><td><b>${r.tipo==="N"?"NC ":"RH "}${esc(r.serie)}-${esc(r.numero)}</b>${r.moneda!=="PEN"?` <span class="tag warn">${esc(r.moneda)}</span>`:""}</td><td>${fDMY(r.fechaEmision)}</td>
      <td><input type="date" id="fp-${esc(p.ruc)}-${i}" value="${esc(r.fechaPago||r.fechaEmision)}" min="${esc(r.fechaEmision)}" onchange="setRec('${esc(p.id)}',${i},'fechaPago',this.value)"></td>
      <td>${esc(r.descripcion)}${r.observacion?`<div class="hint" style="margin:0">${esc(r.observacion)}</div>`:""}</td>${td(r.bruto)}${td(r.retencion)}${td(r.neto)}
-     <td><select id="pen-${esc(p.ruc)}-${i}" onchange="setRec('${esc(p.id)}',${i},'pension',this.value)">${[["3","No aplica"],["1","ONP"],["2","AFP"]].map(([c,n])=>`<option value="${c}" ${c===(r.pension||"3")?"selected":""}>${n}</option>`).join("")}</select>
-       ${r.pension==="1"||r.pension==="2"?`<input type="number" step="0.01" min="0" style="width:90px" placeholder="Importe" id="apo-${esc(p.ruc)}-${i}" value="${esc(r.aporte||"")}" onchange="setRec('${esc(p.id)}',${i},'aporte',this.value)">`:""}</td>
+     <td><select id="rir-${esc(p.ruc)}-${i}" onchange="setRec('${esc(p.id)}',${i},'retIR',this.value)">${[["1","1 – Sí hubo retención"],["0","0 – No hubo retención"]].map(([c,n])=>`<option value="${c}" ${c===retIR(r)?"selected":""}>${n}</option>`).join("")}</select></td>
      <td><span class="tag" title="${esc(r.archivo||"")}">${esc((r.origen||"").toUpperCase())}</span></td><td><button class="btn sm bad" onclick="delRec('${esc(p.id)}',${i})">✕</button></td></tr>`).join("")}
    </tbody><tfoot><tr><td colspan="4">${rs.length} recibo(s)</td>${td(rs.reduce((s,{r})=>s+r.bruto,0))}${td(rs.reduce((s,{r})=>s+r.retencion,0))}${td(rs.reduce((s,{r})=>s+r.neto,0))}<td colspan="3"></td></tr></tfoot></table></div></div>`).join("")}`;
 }
@@ -1373,9 +1372,12 @@ const prestPorId=id=>prestadores().find(p=>p.id===id);
 function setRec(pid,i,k,v){const p=prestPorId(pid),r=p&&p.recibos[i];if(!r||!canGest())return;
   if(k==="fechaPago"){if(!v||v<r.fechaEmision){toast("La fecha de pago no puede ser anterior a la de emisión");return vHon()}r.fechaPago=v;
     if(v.slice(0,7)!==perSel)toast(`El recibo pasó a ${MESES[+v.slice(5,7)-1]} ${v.slice(0,4)}`)}
-  else if(k==="pension"){r.pension=v;if(v==="3")r.aporte=""}
-  else r.aporte=v===""?"":r2(num(v));
+  else if(k==="retIR"){r.retIR=v==="1"?"1":"0";
+    if(r.retIR==="1"&&!(num(r.retencion)>0))toast("Ojo: el recibo no muestra retención del IR (S/ 0.00); revisa antes de declarar.");
+    if(r.retIR==="0"&&num(r.retencion)>0)toast(`Ojo: el recibo muestra una retención de S/ ${fmt(r.retencion)}; revisa antes de declarar.`)}
   savePrest(p);vHon()}
+/* Indicador de retención del IR de 4ta (1 sí / 0 no): por defecto según el recibo; el usuario puede cambiarlo. */
+const retIR=r=>r.retIR==="1"||r.retIR==="0"?r.retIR:num(r.retencion)>0?"1":"0";
 function delRec(pid,i){const p=prestPorId(pid),r=p&&p.recibos[i];if(!r)return;
   confirmar(`¿Quitar el recibo ${r.serie}-${r.numero} de ${p.nombre}?`,()=>{p.recibos.splice(i,1);if(p.recibos.length)savePrest(p);else delPrest(p);vHon();toast("Recibo quitado")})}
 function formPrest(pid){const p=prestPorId(pid);if(!p)return;
@@ -1394,7 +1396,7 @@ function savePrestForm(pid){const p=prestPorId(pid),f=$("#fps");
 
 /* ---------- PLAME: Estructura 7 (.ps4) y Estructura 20 (.4ta) ----------
    .ps4: tipo doc (06 RUC si es domiciliado)|RUC|ap. paterno|ap. materno|nombres|domiciliado (1/2)|convenio (Tabla 25)|
-   .4ta: tipo doc|RUC|tipo comprobante (Tabla 23)|serie|número|monto total|fecha emisión|fecha pago (dd/mm/aaaa)|retención 4ta (1/0)|régimen pensionario (1 ONP, 2 AFP, 3 no aplica)|aporte (vacío si 3)| */
+   .4ta: tipo doc|RUC|tipo comprobante (Tabla 23)|serie|número|monto total|fecha emisión|fecha pago (dd/mm/aaaa)|retención IR 4ta (1 sí / 0 no)|régimen pensionario (3 no aplica)|aporte (vacío)| */
 function datosPs4(){
   const E=emp(empSel),[y,m]=perSel.split("-"),base=`0601${y}${m}${E.ruc}`,ps4=[],ta=[],av=[],cut=s=>String(s||"").slice(0,40);
   prestadores().forEach(p=>{const rs=recDelMes(p);if(!rs.length)return;
@@ -1403,8 +1405,8 @@ function datosPs4(){
     ps4.push(`06|${p.ruc}|${cut(p.apPat)}|${cut(p.apMat)}|${cut(p.nombres)}|${p.domiciliado||"1"}|${p.convenio||"0"}|`);
     rs.forEach(({r})=>{const pago=r.fechaPago||r.fechaEmision;
       if(r.moneda!=="PEN")av.push(`${p.nombre} ${r.serie}-${r.numero}: está en ${r.moneda}; la PLAME lo pide en soles. Corrige el monto antes de declarar.`);
-      if((r.pension==="1"||r.pension==="2")&&!(num(r.aporte)>0))av.push(`${p.nombre} ${r.serie}-${r.numero}: indica el importe de la retención pensionaria.`);
-      ta.push(`06|${p.ruc}|${r.tipo}|${r.serie}|${r.numero}|${m2(r.bruto)}|${fDMY(r.fechaEmision)}|${fDMY(pago)}|${num(r.retencion)>0?1:0}|${r.pension||"3"}|${r.pension==="1"||r.pension==="2"?m2(r.aporte):""}|`)})});
+      // Régimen pensionario de independientes (Ley 29903) no vigente: siempre 3 (no aplica) y sin importe
+      ta.push(`06|${p.ruc}|${r.tipo}|${r.serie}|${r.numero}|${m2(r.bruto)}|${fDMY(r.fechaEmision)}|${fDMY(pago)}|${retIR(r)}|3||`)})});
   return{base,av,files:[["ps4","Prestadores de servicios 4ta (Estructura 7)",ps4],["4ta","Detalle de comprobantes (Estructura 20)",ta]]};
 }
 function dlgPs4(){
