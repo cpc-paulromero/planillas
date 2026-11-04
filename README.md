@@ -10,8 +10,7 @@ Se publica gratis en **GitHub Pages** y guarda los datos en **Supabase**.
 |---|---|
 | `index.html` | La aplicación completa: pantallas, diseño y fórmulas de cálculo |
 | `config.js` | Conexión con tu proyecto de Supabase (lo editas tú) |
-| `supabase.sql` | Crea la base de datos, las reglas de seguridad y las funciones (se ejecuta una vez en Supabase) |
-| `supabase_migracion.sql` | Migración única, después de `supabase.sql`: columnas de empresas, escritura de representantes, cuentas de prueba y suscripción, y recibos por honorarios. Se puede ejecutar más de una vez. |
+| `supabase.sql` | Script único de base de datos: crea las tablas, reglas de seguridad y funciones en un proyecto nuevo, y actualiza uno existente. Se puede ejecutar más de una vez sin borrar datos. |
 | `README.md` | Esta guía |
 
 ---
@@ -70,7 +69,7 @@ Los límites de la cuenta de prueba se validan en la app y en la base de datos (
 
 Los prestadores de 4ta categoría (Honorarios 4ta) los editan el administrador general, el cliente con perfil "administrador", el suscriptor y la cuenta de prueba.
 
-La base de datos aplica la misma matriz (`supabase_migracion.sql`). Además tiene candados que impiden que un representante "usuario" modifique el cálculo de la planilla, o que cualquier representante cambie los parámetros del sistema, aunque existan reglas antiguas más amplias.
+La base de datos aplica la misma matriz (`supabase.sql`). Además tiene candados que impiden que un representante "usuario" modifique el cálculo de la planilla, o que cualquier representante cambie los parámetros del sistema, aunque existan reglas antiguas más amplias.
 
 ### Cuentas de prueba y suscripción
 
@@ -78,19 +77,13 @@ La base de datos aplica la misma matriz (`supabase_migracion.sql`). Además tien
 - El usuario de una cuenta **Prueba** puede **eliminar su cuenta** desde *Mi cuenta* (por ejemplo, si registró mal el RUC): confirma con su RUC y su contraseña, y se borran la empresa, sus trabajadores, planillas, honorarios 4ta y su usuario. Las cuentas *Cliente* y *Suscriptor* no tienen esa opción; solo el administrador general puede eliminarlas desde *Empresas*.
 - La cuenta queda con tipo **Prueba**: tiene los mismos accesos que un representante con permiso "administrador", pero su empresa **puede registrar como máximo 2 trabajadores** (activos y cesados). Al intentar registrar un tercero, la app muestra los datos de contacto.
 - En **Empresas**, el administrador cambia el **tipo de cuenta** directamente en la lista. Al pasarla a *Cliente* o *Suscriptor* desaparece el límite. Las cuentas creadas por registro muestran la nota "Se registró solo".
-- El límite y la suscripción los controla la base de datos (`supabase_migracion.sql`): un representante no puede saltarse el límite ni activarse la suscripción. Las empresas que existían antes de ejecutar el script quedan con suscripción activa.
+- El límite y la suscripción los controla la base de datos (`supabase.sql`): un representante no puede saltarse el límite ni activarse la suscripción. Las empresas que existían antes de ejecutar el script quedan con suscripción activa.
 
-### Recuperar contraseña
+### Contraseña olvidada y correos
 
-- **¿Olvidaste tu contraseña?** funciona para **todos los usuarios**. Cada uno escribe su correo registrado y recibe un enlace; al abrirlo, la app pide la nueva contraseña.
-- Los representantes **siguen ingresando con su RUC**. Su correo registrado es el de su cuenta, y la base de datos solo lo usa para iniciar la sesión cuando la contraseña es correcta. Así nadie puede averiguar el correo de un cliente con su RUC. Además, tras 10 intentos fallidos el RUC queda bloqueado 15 minutos.
-- **Dónde se registra el correo:**
-  - Cuentas de prueba: es obligatorio al registrarse.
-  - Representantes que ya existían: el administrador lo agrega en *Empresas → Crear acceso / Cambiar contraseña*, o el propio usuario lo registra en *Mi cuenta → Correo para recuperar tu contraseña*.
-  - Quien aún no tiene correo sigue ingresando normalmente con su RUC; para recuperar su contraseña debe pedírsela al administrador.
-- Configuración necesaria en Supabase:
-  1. **Authentication → URL Configuration:** en *Site URL* y en *Redirect URLs* agrega la dirección de la app (por ejemplo `https://TU-USUARIO.github.io/planillas/`).
-  2. **Authentication → Emails → SMTP Settings:** configura un servidor SMTP propio (Gmail con contraseña de aplicación, Brevo, Resend, etc.). El servicio de correo incluido en Supabase solo envía a los miembros del equipo del proyecto y tiene un límite muy bajo.
+- **¿Olvidaste tu contraseña?** muestra el mensaje *"Comunícate con el administrador para restablecer tu contraseña"* con los datos de contacto. La app **no envía correos de recuperación**. El administrador asigna una contraseña nueva en *Empresas → Cambiar contraseña* y el usuario puede cambiarla luego en *Mi cuenta*. Vale para todas las cuentas: prueba, cliente y suscriptor.
+- Los representantes **ingresan con su RUC**. Si tienen un correo registrado en su cuenta, la base de datos solo lo usa para iniciar la sesión cuando la contraseña es correcta, así nadie puede averiguar el correo de un cliente con su RUC. Tras 10 intentos fallidos el RUC queda bloqueado 15 minutos.
+- **Correo de la empresa (opcional):** la ficha de cada empresa tiene un campo *Correo* para registrar un correo de contacto, útil sobre todo en las empresas creadas antes de que se pidiera. Lo llenan el administrador o el representante con permiso. En las cuentas de prueba se llena con el correo del registro.
 
 ### Uso en celular
 
@@ -168,17 +161,19 @@ Funciones y triggers:
 | Trigger al cambiar el RUC | El representante pasa a entrar con el RUC nuevo, con la misma contraseña. |
 | Trigger al eliminar una empresa | Elimina también el usuario de su representante. |
 
-## Base de datos: dos scripts
+## Base de datos: un solo script
 
-1. `supabase.sql` crea la base inicial (tablas, reglas y accesos de representantes).
-2. `supabase_migracion.sql` agrega todo lo que usa la versión actual de la app:
-   - las columnas de `empresas` (`permiso`, `rubro`, ubicación, `suscripcion_activa`, `origen`);
-   - la función `emp_actualizar_datos`;
-   - las reglas para que los representantes escriban trabajadores y datos del mes;
-   - las cuentas de prueba (`registrar_prueba`, límite de 2 trabajadores y de 2 prestadores de 4ta con 2 recibos cada uno);
-   - la tabla `prestadores4ta` de recibos por honorarios.
+`supabase.sql` contiene todo lo que usa la versión actual de la app:
 
-   No borra datos y se puede ejecutar más de una vez. Si tu base ya tenía alguna de estas piezas, se conserva.
+- la base: tablas `empresas`, `profiles`, `trabajadores`, `periodos` y `ajustes`, reglas de lectura y accesos de representantes;
+- las columnas de `empresas` (`permiso`, `tipo_cuenta`, `rubro`, ubicación, `correo`, `origen`);
+- las funciones `emp_actualizar_datos` y `emp_actualizar_correo`;
+- la matriz de permisos y las reglas para que los representantes escriban trabajadores y datos del mes;
+- las cuentas de prueba (`registrar_prueba`, `eliminar_mi_cuenta`, límite de 2 trabajadores y de 2 prestadores de 4ta con 2 recibos cada uno);
+- la tabla `prestadores4ta` de recibos por honorarios;
+- el ingreso con RUC (`login_ruc`) y los correos de usuario.
+
+Sirve para un proyecto nuevo y para actualizar uno existente. No borra datos y se puede ejecutar más de una vez.
 
 La carga masiva de trabajadores y de planilla no necesita tablas nuevas: usa `trabajadores` y `periodos`.
 
@@ -189,7 +184,7 @@ La carga masiva de trabajadores y de planilla no necesita tablas nuevas: usa `tr
 ### Paso 1 – Crear el proyecto en Supabase
 
 1. Entra a <https://supabase.com>, crea una cuenta y luego **New project**. Elige la región más cercana (por ejemplo *South America (São Paulo)*) y guarda la contraseña de la base de datos.
-2. Cuando el proyecto esté listo, abre **SQL Editor**, pulsa **New query**, pega **todo** el contenido de `supabase.sql` y pulsa **Run**. Debe terminar con *Success*. Revisa también la sección [Pendiente](#️-pendiente-supabasesql-no-cubre-todo-lo-que-usa-la-app).
+2. Cuando el proyecto esté listo, abre **SQL Editor**, pulsa **New query**, pega **todo** el contenido de `supabase.sql` y pulsa **Run**. Debe terminar con *Success*.
 3. Crea tu usuario de administrador:
    - Ve a **Authentication → Users → Add user → Create new user**.
    - Escribe tu correo y una contraseña segura, y marca **Auto Confirm User**.

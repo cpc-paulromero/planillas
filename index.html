@@ -188,17 +188,10 @@ tr.lock input{pointer-events:none;opacity:.55}
   <div id="lerr" class="err"></div><button class="btn pri" id="lbtn">Ingresar</button>
   <p class="lreg"><button type="button" class="linkbtn" onclick="verPanel('rec')">¿Olvidaste tu contraseña?</button></p>
   <p class="lreg">¿Aún no tienes cuenta? <button type="button" class="linkbtn" onclick="verRegistro(true)">Crear cuenta de prueba</button></p></form>
-  <form id="frec" hidden onsubmit="recuperar(event)">
-    <p class="hint" style="margin:0">Escribe el correo que registraste en tu cuenta y te enviaremos un enlace para crear una nueva contraseña. Si ingresas con RUC, también es tu correo registrado.</p>
-    <label>Correo electrónico registrado<input id="rmail" type="email" autocomplete="email" required></label>
-    <div id="recmsg"></div><button class="btn pri" id="recbtn">Enviar enlace</button>
-    <p class="hint" style="margin:0">¿Nunca registraste un correo? Pide al administrador que te asigne una contraseña nueva y registra tu correo en <b>Mi cuenta</b>.</p>
-    <p class="lreg"><button type="button" class="linkbtn" onclick="verPanel('login')">Volver a ingresar</button></p></form>
-  <form id="fnew" hidden onsubmit="guardarNuevaClave(event)">
-    <p class="hint" style="margin:0">Crea tu nueva contraseña.</p>
-    <label>Nueva contraseña (mín. 8 caracteres)<input id="np1" type="password" minlength="8" autocomplete="new-password" required></label>
-    <label>Repite la nueva contraseña<input id="np2" type="password" minlength="8" autocomplete="new-password" required></label>
-    <div id="nperr" class="err"></div><button class="btn pri" id="npbtn">Guardar e ingresar</button></form>
+  <div id="frec" hidden style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+    <div class="note info" style="margin:0"><b>Comunícate con el administrador para restablecer tu contraseña.</b></div>
+    <p class="hint" style="margin:0">Escríbenos por WhatsApp o al correo <b>promeroasesoria@gmail.com</b> (datos de contacto abajo) indicando el RUC de tu empresa. Te asignaremos una contraseña nueva, que luego puedes cambiar en <b>Mi cuenta</b>.</p>
+    <button type="button" class="btn pri" onclick="verPanel('login')">Volver a ingresar</button></div>
   <form id="freg" hidden onsubmit="registrar(event)">
     <div class="note info" style="margin:0">Prueba la app gratis con todas sus funciones. La cuenta de prueba permite registrar hasta <b>2 trabajadores</b> y <b>2 prestadores de 4ta</b> (2 recibos cada uno).</div>
     <label>RUC de tu empresa<input id="rruc" maxlength="11" inputmode="numeric" autocomplete="username" required></label>
@@ -208,7 +201,7 @@ tr.lock input{pointer-events:none;opacity:.55}
     <div id="rubi" style="display:contents"></div>
     <label>Ciudad<input id="rciudad" name="ciudad" maxlength="60" placeholder="Si la dejas vacía, se usa la provincia"></label>
     <label>Régimen laboral<select id="rreg" required></select></label>
-    <label>Correo electrónico<input id="rmail2" type="email" autocomplete="email" required><span class="hint" style="margin:0">Lo usarás para recuperar tu contraseña. Ingresarás con tu RUC.</span></label>
+    <label>Correo electrónico<input id="rmail2" type="email" autocomplete="email" required><span class="hint" style="margin:0">Para comunicarnos contigo. Ingresarás con tu RUC.</span></label>
     <label>Crea una contraseña (mín. 8 caracteres)<input id="rp1" type="password" minlength="8" autocomplete="new-password" required></label>
     <label>Repite la contraseña<input id="rp2" type="password" minlength="8" autocomplete="new-password" required></label>
     <div id="rerr2" class="err"></div><button class="btn pri" id="rbtn">Crear cuenta e ingresar</button>
@@ -309,18 +302,14 @@ const LS="planillas-pe-v1";
 /* ---------- Conexión con Supabase ---------- */
 const REP_DOMAIN="empresa.planillas.pe";           // debe coincidir con public.rep_email() en supabase.sql
 const CFG=window.PLANILLAS_CONFIG||{};
-/* Enlace de "¿Olvidaste tu contraseña?": Supabase vuelve a la app con #access_token=…&type=recovery (o #error=… si venció) */
-const HASH0=new URLSearchParams((location.hash||"").replace(/^#/,""));
-const RECOVERY=HASH0.get("type")==="recovery";
-const AUTH_ERR=!!(HASH0.get("error_code")||HASH0.get("error"));
 let sb=null, ROLE=null, ME=null, MYEMP=null, REPS=new Set();
 const isAdmin=()=>ROLE==="admin";
 /** Puede gestionar cálculos (ajustes, Dctos., generar): el administrador general o un rep. legal con permiso "administrador" */
 const canGest=()=>isAdmin()||(ROLE==="rep"&&permisoEf(emp(MYEMP))==="administrador");
 /** Permiso efectivo del representante: un suscriptor (no es cliente de la asesoría) siempre gestiona su cuenta como "administrador";
-    en una empresa cliente vale el permiso que elige el administrador. Igual que public.permiso_efectivo() en supabase_migracion.sql */
+    en una empresa cliente vale el permiso que elige el administrador. Igual que public.permiso_efectivo() en supabase.sql */
 const permisoEf=e=>!e?"usuario":e.tipo==="cliente"?(e.permiso||"usuario"):"administrador";
-/** Tipo de cuenta de la empresa (igual que empresas.tipo_cuenta en supabase_migracion.sql):
+/** Tipo de cuenta de la empresa (igual que empresas.tipo_cuenta en supabase.sql):
     cliente    → cliente de la asesoría; el administrador elige el permiso (usuario / administrador); sin límite de trabajadores.
     suscriptor → maneja su propia cuenta como administrador; sin límite de trabajadores.
     prueba     → como suscriptor, pero con máximo LIMITE_PRUEBA trabajadores. */
@@ -340,7 +329,7 @@ function q(fn){
   chainP=chainP.then(async()=>{setSync("Guardando…");const r=await fn();if(r&&r.error){setSync("⚠ Error al guardar");toast("No se pudo guardar: "+String(r.error.message).replace(/^LIMITE_PRUEBA:\s*/,""));return}setSync("✓ Guardado")}).catch(e=>{setSync("⚠ Error al guardar");toast("No se pudo guardar: "+(e.message||e))});
   return chainP;
 }
-const empRow=e=>({permiso:e.permiso||"usuario",tipo_cuenta:e.tipo||"cliente",id:e.id,ruc:e.ruc,razon:e.razon,direccion:e.direccion||"",regimen_id:e.regimenId,rubro:e.rubro||"",ciudad:e.ciudad||"",departamento:e.departamento||"",provincia:e.provincia||"",distrito:e.distrito||""});
+const empRow=e=>({permiso:e.permiso||"usuario",tipo_cuenta:e.tipo||"cliente",id:e.id,ruc:e.ruc,razon:e.razon,direccion:e.direccion||"",regimen_id:e.regimenId,rubro:e.rubro||"",ciudad:e.ciudad||"",departamento:e.departamento||"",provincia:e.provincia||"",distrito:e.distrito||"",correo:e.correo||""});
 const trabRow=w=>({id:w.id,empresa_id:w.empresaId,data:w,updated_at:new Date().toISOString()});
 function perRows(per){
   const out={};
@@ -397,7 +386,7 @@ async function loadAll(){
   const[aj,em,tr,pe]=await Promise.all([fetchAll("ajustes"),fetchAll("empresas"),fetchAll("trabajadores"),fetchAll("periodos",q=>q.eq("periodo",perSel))]);
   S=clone(DEF);
   aj.forEach(r=>{S[r.clave]=r.data});
-  S.empresas=em.map(r=>({id:r.id,ruc:r.ruc,razon:r.razon,direccion:r.direccion,regimenId:r.regimen_id,permiso:r.permiso||"usuario",tipo:tipoDe(r),origen:r.origen||"admin",rubro:r.rubro||"",ciudad:r.ciudad||"",departamento:r.departamento||"",provincia:r.provincia||"",distrito:r.distrito||""})).sort((a,b)=>a.razon.localeCompare(b.razon));
+  S.empresas=em.map(r=>({id:r.id,ruc:r.ruc,razon:r.razon,direccion:r.direccion,regimenId:r.regimen_id,permiso:r.permiso||"usuario",tipo:tipoDe(r),origen:r.origen||"admin",rubro:r.rubro||"",ciudad:r.ciudad||"",departamento:r.departamento||"",provincia:r.provincia||"",distrito:r.distrito||"",correo:r.correo||""})).sort((a,b)=>a.razon.localeCompare(b.razon));
   S.trabajadores=tr.map(r=>({...r.data,id:r.id,empresaId:r.empresa_id})).sort((a,b)=>nombreT(a).localeCompare(nombreT(b)));
   S.periodos={};PER_LOADED.clear();mergePer(pe);PER_LOADED.add(perSel);
   const before=JSON.stringify(S);migrate();
@@ -415,9 +404,6 @@ async function boot(){
     $("#boot").querySelector(".hint").outerHTML=`<div class="note" style="margin-top:14px">Falta configurar la conexión. Edita el archivo <b>config.js</b> con la URL y la clave pública (anon key) de tu proyecto de Supabase.</div>`;return}
   sb=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY);
   const{data:{session}}=await sb.auth.getSession();
-  if(RECOVERY&&session){showLogin();verPanel("new");return}
-  if(AUTH_ERR&&!session){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}
-    return showLogin("El enlace para crear una nueva contraseña venció o ya se usó. Pide otro con «¿Olvidaste tu contraseña?».")}
   if(session)await enter(session.user);else showLogin();
 }
 async function enter(user){
@@ -470,28 +456,9 @@ const correoReal=e=>e&&!String(e).toLowerCase().endsWith("@"+REP_DOMAIN)?e:"";
 /** Dígito verificador del RUC (módulo 11); la base de datos hace la misma validación */
 function rucValido(r){if(!/^(10|15|16|17|20)\d{9}$/.test(r))return false;const w=[5,4,3,2,7,6,5,4,3,2];
   let s=0;for(let i=0;i<10;i++)s+=+r[i]*w[i];let d=11-s%11;if(d===10)d=0;else if(d===11)d=1;return d===+r[10]}
-/** Paneles de la pantalla de ingreso: login, reg (cuenta de prueba), rec (recuperar), new (nueva contraseña) */
-function verPanel(k){const P={login:$("#login form"),reg:$("#freg"),rec:$("#frec"),new:$("#fnew")};
+/** Paneles de la pantalla de ingreso: login, reg (cuenta de prueba), rec (olvidé mi contraseña: contactar al administrador) */
+function verPanel(k){const P={login:$("#login form"),reg:$("#freg"),rec:$("#frec")};
   Object.entries(P).forEach(([n,f])=>f.hidden=n!==k);$(".lintro").hidden=k!=="login";
-  if(k==="rec"){const u=$("#lu").value.trim();if(u.includes("@"))$("#rmail").value=u;$("#recmsg").innerHTML="";$("#rmail").focus()}}
-async function recuperar(ev){
-  ev.preventDefault();const mail=$("#rmail").value.trim(),msg=$("#recmsg");
-  if(/^\d{11}$/.test(mail)||mail.toLowerCase().endsWith("@"+REP_DOMAIN)){msg.innerHTML=`<div class="note">Escribe el <b>correo</b> que registraste en tu cuenta, no tu RUC. Si nunca registraste uno, pide al administrador una contraseña nueva.</div>`;return}
-  $("#recbtn").disabled=true;
-  const{error}=await sb.auth.resetPasswordForEmail(mail,{redirectTo:location.origin+location.pathname});
-  $("#recbtn").disabled=false;
-  msg.innerHTML=error&&!/not found|no user/i.test(error.message)
-    ?`<div class="err">${/rate|seconds|limit/i.test(error.message)?"Ya se envió un enlace hace poco. Espera unos minutos y vuelve a intentarlo.":"No se pudo enviar el correo: "+esc(error.message)}</div>`
-    :`<div class="note info">Si <b>${esc(mail)}</b> está registrado, te llegará un correo con el enlace en unos minutos. Revisa también la carpeta de spam.</div>`;
-}
-async function guardarNuevaClave(ev){
-  ev.preventDefault();const a=$("#np1").value,b=$("#np2").value,e=$("#nperr");e.textContent="";
-  if(a.length<8)return e.textContent="La contraseña debe tener al menos 8 caracteres.";
-  if(a!==b)return e.textContent="Las contraseñas no coinciden.";
-  $("#npbtn").disabled=true;const{data,error}=await sb.auth.updateUser({password:a});$("#npbtn").disabled=false;
-  if(error)return e.textContent=/same|different/i.test(error.message)?"La nueva contraseña debe ser distinta a la anterior.":"No se pudo guardar: "+error.message;
-  try{history.replaceState(null,"",location.pathname+location.search)}catch(x){}
-  verPanel("login");await enter(data.user);toast("Contraseña actualizada");
 }
 function verRegistro(on){verPanel(on?"reg":"login");
   if(on){if(!$("#rubi").children.length){$("#rubi").innerHTML=ubiHTML({});$("#rubi").querySelectorAll("select").forEach(s=>s.required=true)}
@@ -568,7 +535,7 @@ function setEmp(id){empSel=id;try{localStorage.setItem(LS+"-emp",id)}catch(e){};
 const trabEmp=()=>S.trabajadores.filter(w=>w.empresaId===empSel);
 /* ---------- Cuentas de prueba y suscripción ----------
    Sin suscripción activa, la empresa puede registrar como máximo LIMITE_PRUEBA trabajadores (activos y cesados).
-   La base de datos aplica el mismo límite (supabase_migracion.sql). El administrador no tiene límite. */
+   La base de datos aplica el mismo límite (supabase.sql). El administrador no tiene límite. */
 const LIMITE_PRUEBA=2;
 const enPrueba=e=>!!e&&e.tipo==="prueba";
 const nTrab=empId=>S.trabajadores.filter(w=>w.empresaId===empId).length;
@@ -1198,7 +1165,7 @@ function setDcto(wid,k,v){
 /* =========================================================
    HONORARIOS 4TA: recibos por honorarios de prestadores de servicios
    Importa el reporte TXT de SUNAT (SOL), los XML y los PDF de los RHE; agrupa por emisor (RUC).
-   Se guarda una fila por empresa y prestador en la tabla prestadores4ta (supabase_migracion.sql).
+   Se guarda una fila por empresa y prestador en la tabla prestadores4ta (supabase.sql).
    El periodo de declaración es el mes de la FECHA DE PAGO (por defecto, la de emisión).
    ========================================================= */
 const HON={},HON_LOADED=new Set();
@@ -1352,7 +1319,7 @@ async function importarRxH(files){
 const recDelMes=p=>(p.recibos||[]).map((r,i)=>({r,i})).filter(({r})=>(r.fechaPago||r.fechaEmision).slice(0,7)===perSel);
 function vHon(){
   if(!HON_LOADED.has(empSel)){const e=empSel;$("#main").innerHTML=`<div class="card"><div class="empty">Cargando recibos por honorarios…</div></div>`;
-    ensureHon(e).then(()=>{if(empSel===e&&tab==="honorarios")vHon()}).catch(err=>{$("#main").innerHTML=`<div class="card"><div class="empty">No se pudieron cargar los recibos: ${esc(err.message||err)}${/prestadores4ta|relation|schema/i.test(err.message||"")?"<br>Falta ejecutar <b>supabase_migracion.sql</b> en Supabase.":""}</div></div>`});return}
+    ensureHon(e).then(()=>{if(empSel===e&&tab==="honorarios")vHon()}).catch(err=>{$("#main").innerHTML=`<div class="card"><div class="empty">No se pudieron cargar los recibos: ${esc(err.message||err)}${/prestadores4ta|relation|schema/i.test(err.message||"")?"<br>Falta ejecutar <b>supabase.sql</b> en Supabase.":""}</div></div>`});return}
   const[y,m]=perSel.split("-").map(Number),ps=prestadores().map(p=>({p,rs:recDelMes(p)})).filter(x=>x.rs.length);
   const all=ps.flatMap(x=>x.rs.map(o=>o.r)),T=k=>r2(all.reduce((s,r)=>s+(r.tipo==="N"?-1:1)*num(r[k]),0));
   const otros={};prestadores().forEach(p=>(p.recibos||[]).forEach(r=>{const k=(r.fechaPago||r.fechaEmision).slice(0,7);if(k!==perSel)otros[k]=(otros[k]||0)+1}));
@@ -2009,13 +1976,14 @@ function permTxt(v){return v==="administrador"
 function formEmp(id){
   if(!isAdmin()&&!(canGest()&&id===MYEMP))return;
   const e=id?emp(id):{ruc:"",razon:"",direccion:"",regimenId:S.config.regimenes[0].id},ro=isAdmin()?"":"disabled";
-  openDlg(`<h2>${id?"Editar":"Nueva"} empresa</h2>${ro?`<p class="hint">Puedes actualizar el rubro, la dirección y la ubicación. El RUC, la razón social, el régimen laboral y los permisos solo los modifica el administrador general.</p>`:""}<form id="fe" onsubmit="event.preventDefault();saveEmp('${id||""}')"><div class="grid">
+  openDlg(`<h2>${id?"Editar":"Nueva"} empresa</h2>${ro?`<p class="hint">Puedes actualizar el rubro, la dirección, la ubicación y el correo. El RUC, la razón social, el régimen laboral y los permisos solo los modifica el administrador general.</p>`:""}<form id="fe" onsubmit="event.preventDefault();saveEmp('${id||""}')"><div class="grid">
    <label>RUC (11 dígitos) *<input name="ruc" maxlength="11" inputmode="numeric" value="${esc(e.ruc)}" required ${ro}></label>
    <label>Razón social *<input name="razon" value="${esc(e.razon)}" required ${ro}></label>
    <label>Rubro de la empresa<input name="rubro" value="${esc(e.rubro||"")}" placeholder="Ej. Actividades jurídicas"></label>
    <label style="grid-column:1/-1">Dirección fiscal (calle, número, urbanización)<input name="direccion" value="${esc(e.direccion||"")}" placeholder="Ej. Mza. A Lote 1J Urb. Los Portales del Golf"></label>
    ${ubiHTML(e)}
    <label>Ciudad para la fecha de la boleta<input name="ciudad" value="${esc(e.ciudad||"")}" placeholder="Si se deja vacío: la provincia"></label>
+   <label>Correo de la empresa (opcional)<input name="correo" type="email" maxlength="120" autocomplete="email" value="${esc(e.correo||"")}" placeholder="contacto@empresa.com"></label>
    <label>Permisos del representante legal<select name="permiso" ${ro} onchange="$('#permtxt').innerHTML=permTxt(this.value)">
      <option value="usuario" ${(e.permiso||"usuario")==="usuario"?"selected":""}>Usuario</option>
      <option value="administrador" ${e.permiso==="administrador"?"selected":""}>Administrador</option></select>
@@ -2034,12 +2002,16 @@ function onTipoCuenta(f){const cli=f.tipo.value==="cliente";f.permiso.disabled=!
   $("#permtxt").innerHTML=permTxt(cli?f.permiso.value:"administrador")}
 async function saveEmp(id){const f=$("#fe");
   if(!isAdmin()){   // administrador de empresa: solo rubro, dirección y ubicación, vía función segura del servidor
-    const d={rubro:f.rubro.value.trim(),direccion:f.direccion.value.trim(),ciudad:f.ciudad.value.trim()||f.provincia.value,...ubiVals(f)};
+    const d={rubro:f.rubro.value.trim(),direccion:f.direccion.value.trim(),ciudad:f.ciudad.value.trim()||f.provincia.value,correo:f.correo.value.trim().toLowerCase(),...ubiVals(f)};
+    if(d.correo&&!correoOk(d.correo)){$("#eerr").textContent="El correo no es válido.";return}
     const{error}=await sb.rpc("emp_actualizar_datos",{p_rubro:d.rubro,p_direccion:d.direccion,p_departamento:d.departamento,p_provincia:d.provincia,p_distrito:d.distrito,p_ciudad:d.ciudad});
     if(error){$("#eerr").textContent="No se pudo guardar: "+error.message;return}
+    if(d.correo!==(emp(MYEMP).correo||"")){const r=await sb.rpc("emp_actualizar_correo",{p_correo:d.correo});
+      if(r.error){$("#eerr").textContent="No se pudo guardar el correo: "+(/function|schema cache/i.test(r.error.message)?"falta ejecutar la última versión de supabase.sql en Supabase.":r.error.message);return}}
     Object.assign(emp(MYEMP),d);closeDlg();render();toast("Datos de la empresa actualizados");return}
-  const o={permiso:f.permiso.value,tipo:f.tipo.value,ruc:f.ruc.value.trim(),razon:f.razon.value.trim(),direccion:f.direccion.value.trim(),regimenId:f.regimenId.value,rubro:f.rubro.value.trim(),ciudad:f.ciudad.value.trim()||f.provincia.value,...ubiVals(f)};
+  const o={permiso:f.permiso.value,tipo:f.tipo.value,ruc:f.ruc.value.trim(),razon:f.razon.value.trim(),direccion:f.direccion.value.trim(),regimenId:f.regimenId.value,rubro:f.rubro.value.trim(),ciudad:f.ciudad.value.trim()||f.provincia.value,correo:f.correo.value.trim().toLowerCase(),...ubiVals(f)};
   const err=[];
+  if(o.correo&&!correoOk(o.correo))err.push("El correo de la empresa no es válido.");
   if(!/^(10|15|16|17|20)\d{9}$/.test(o.ruc))err.push("El RUC debe tener 11 dígitos y empezar con 10, 15, 16, 17 o 20.");
   if(S.empresas.some(e=>e.ruc===o.ruc&&e.id!==id))err.push("Ya existe una empresa registrada con ese RUC.");
   if(!o.razon)err.push("Ingresa la razón social.");
@@ -2061,13 +2033,14 @@ function formAcceso(id){
   <p><b>${esc(e.razon)}</b><br><span class="hint">El representante ingresa con el RUC como usuario y solo ve la información de esta empresa. Lo que puede hacer depende de su permiso (${permisoEf(e)==="administrador"?"Administrador":"Usuario"}).</span></p>
   <div class="grid"><label>Usuario (RUC)<input value="${esc(e.ruc)}" disabled></label>
   <label>${tiene?"Nueva contraseña":"Contraseña"} (mín. 8 caracteres)<input id="ap" type="text" minlength="8" autocomplete="off"></label>
-  <label style="grid-column:1/-1">Correo del representante (para recuperar su contraseña)<input id="amail" type="email" autocomplete="off" placeholder="${tiene?"Cargando…":"Opcional, recomendado"}"><span class="hint" style="margin:0">Si lo dejas vacío, se conserva el que ya tenga.</span></label></div>
+  <label style="grid-column:1/-1">Correo del representante (de contacto)<input id="amail" type="email" autocomplete="off" placeholder="${tiene?"Cargando…":"Opcional, recomendado"}"><span class="hint" style="margin:0">Si lo dejas vacío, se conserva el que ya tenga.</span></label></div>
   <div class="row" style="margin-top:8px"><button class="btn sm" onclick="$('#ap').value=genPass()">Generar contraseña segura</button></div>
   <div id="aerr" class="err" style="margin-top:8px"></div><div id="aok"></div>
   <div class="dlg-foot">${tiene?`<button class="btn bad" style="margin-right:auto" onclick="quitarAcceso('${id}')">Quitar acceso</button>`:""}
   <button class="btn" onclick="closeDlg()">Cerrar</button><button class="btn pri" id="abtn" onclick="guardarAcceso('${id}')">${tiene?"Cambiar contraseña":"Crear acceso"}</button></div>`);
   if(tiene)sb.rpc("admin_correo_rep",{p_empresa:id}).then(({data,error})=>{const i=$("#amail");if(!i)return;
-    i.placeholder=error?"Opcional":data?"":"Sin correo registrado";if(!error&&data)i.value=data});
+    i.placeholder=error?"Opcional":data?"":"Sin correo registrado";if(!error&&data)i.value=data;else if(!i.value&&e.correo)i.value=e.correo});
+  else if(e.correo)$("#amail").value=e.correo;
 }
 async function guardarAcceso(id){
   const pw=$("#ap").value.trim(),mail=$("#amail").value.trim().toLowerCase();
@@ -2076,9 +2049,9 @@ async function guardarAcceso(id){
   $("#abtn").disabled=true;$("#aerr").textContent="";
   const{error}=await sb.rpc("admin_set_rep_password",{p_empresa:id,p_password:pw,p_email:mail||null});
   $("#abtn").disabled=false;
-  if(error){$("#aerr").textContent=/could not find|schema cache/i.test(error.message)?"Falta ejecutar la última versión de supabase_migracion.sql en Supabase.":error.message;return}
+  if(error){$("#aerr").textContent=/could not find|schema cache/i.test(error.message)?"Falta ejecutar la última versión de supabase.sql en Supabase.":error.message;return}
   REPS.add(id);const e=emp(id);
-  const txt=`Acceso a PlanillaPRo - Perú\nEmpresa: ${e.razon}\nUsuario (RUC): ${e.ruc}\nContraseña: ${pw}${mail?`\nCorreo registrado (para recuperar la contraseña): ${mail}`:""}\nDirección web: ${location.origin+location.pathname}`;
+  const txt=`Acceso a PlanillaPRo - Perú\nEmpresa: ${e.razon}\nUsuario (RUC): ${e.ruc}\nContraseña: ${pw}${mail?`\nCorreo registrado: ${mail}`:""}\nDirección web: ${location.origin+location.pathname}`;
   $("#aok").innerHTML=`<div class="note info" style="white-space:pre-line">✓ Acceso listo. Entrega estos datos al representante legal:\n\n${esc(txt)}</div><button class="btn sm" id="cpy">Copiar datos</button>`;
   $("#cpy").onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast("Copiado")}catch(x){toast("No se pudo copiar")}};
   vEmp();
@@ -2098,8 +2071,8 @@ function vCuenta(){
    <label>Nueva contraseña (mín. 8 caracteres)<input type="password" name="n" minlength="8" autocomplete="new-password" required></label>
    <label>Repite la nueva contraseña<input type="password" name="r" minlength="8" autocomplete="new-password" required></label>
    <div id="perr" class="err"></div><div><button class="btn pri" id="pbtn">Cambiar contraseña</button></div></form></div>
-  ${isAdmin()?"":`<div class="card" style="max-width:520px"><h2>Correo para recuperar tu contraseña</h2>
-   <p class="hint">${correoReal(ME.email)?`Si olvidas tu contraseña, te enviaremos el enlace a <b>${esc(ME.email)}</b>. Sigues ingresando con tu RUC.`:`<span style="color:var(--warn)">Aún no registras un correo.</span> Regístralo para poder recuperar tu contraseña sin pedírsela al administrador. Sigues ingresando con tu RUC.`}</p>
+  ${isAdmin()?"":`<div class="card" style="max-width:520px"><h2>Correo de contacto</h2>
+   <p class="hint">${correoReal(ME.email)?`Tu correo registrado es <b>${esc(ME.email)}</b>. Sigues ingresando con tu RUC.`:`<span style="color:var(--warn)">Aún no registras un correo.</span> Regístralo para que podamos comunicarnos contigo. Sigues ingresando con tu RUC.`} Si olvidas tu contraseña, comunícate con el administrador para restablecerla.</p>
    <form id="fmail" onsubmit="event.preventDefault();guardarMiCorreo()" style="display:flex;flex-direction:column;gap:12px">
     <label>Correo electrónico<input type="email" name="m" id="mcorreo" autocomplete="email" value="${esc(correoReal(ME.email))}" required></label>
     <div id="merr" class="err"></div><div><button class="btn pri" id="mbtn">${correoReal(ME.email)?"Cambiar correo":"Registrar correo"}</button></div></form></div>`}
@@ -2132,7 +2105,7 @@ async function guardarMiCorreo(){
   if(v===String(ME.email).toLowerCase())return toast("Ese ya es tu correo registrado");
   $("#mbtn").disabled=true;const{error}=await sb.rpc("cambiar_mi_correo",{p_email:v});$("#mbtn").disabled=false;
   if(error)return $("#merr").textContent=/function|schema cache/i.test(error.message)?"Esta opción aún no está habilitada. Comunícate con el administrador.":error.message;
-  ME.email=v;vCuenta();toast("Correo registrado. Ya puedes recuperar tu contraseña con él.");
+  ME.email=v;vCuenta();toast("Correo registrado");
 }
 async function cambiarPass(){
   const f=$("#fp"),a=f.a.value,n=f.n.value,r=f.r.value;
