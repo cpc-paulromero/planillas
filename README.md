@@ -11,6 +11,7 @@ Se publica gratis en **GitHub Pages** y guarda los datos en **Supabase**.
 | `index.html` | La aplicación completa: pantallas, diseño y fórmulas de cálculo |
 | `config.js` | Conexión con tu proyecto de Supabase (lo editas tú) |
 | `supabase.sql` | Crea la base de datos, las reglas de seguridad y las funciones (se ejecuta una vez en Supabase) |
+| `supabase_migracion.sql` | Migración única, después de `supabase.sql`: columnas de empresas, escritura de representantes, cuentas de prueba y suscripción, y recibos por honorarios. Se puede ejecutar más de una vez. |
 | `README.md` | Esta guía |
 
 ---
@@ -41,34 +42,54 @@ GitHub Pages ──entrega index.html y config.js──▶ Navegador (la app)
 
 Todos entran por la misma pantalla. Un **correo** identifica al administrador y un **RUC de 11 dígitos** identifica al representante legal de una empresa. Por dentro, la app convierte el RUC en el usuario `RUC@empresa.planillas.pe`; no se envían correos a esa dirección.
 
-| Puede… | Administrador | Rep. legal con permiso "administrador" | Rep. legal ("usuario") |
+| Puede… | Administrador general | Rep. legal con permiso "administrador" | Rep. legal ("usuario") |
 |---|:-:|:-:|:-:|
 | Ver todas las empresas | ✅ | – | – |
-| Ver su propia empresa | ✅ | ✅ | ✅ |
-| Crear, editar y eliminar empresas | ✅ | – | – |
+| Ver su propia empresa, sus trabajadores, planilla y beneficios | ✅ | ✅ | ✅ |
+| Descargar boletas, planilla, AFPnet y PLAME | ✅ | ✅ | ✅ |
+| Crear, editar y eliminar empresas; marcar «Es cliente» y «Suscripción activa» | ✅ | – | – |
 | Editar rubro, dirección y ubicación de su empresa | ✅ | ✅ | – |
-| Crear y editar trabajadores | ✅ | ✅ | ✅ |
+| Agregar y editar trabajadores (incluida la carga masiva) | ✅ | ✅ | ✅ |
 | Eliminar trabajadores | ✅ | ✅ | – |
-| Registrar faltas y descuentos (pestaña Dcto.) | ✅ | ✅ | – |
-| Generar, ajustar y anular cálculos de planilla | ✅ | ✅ | – |
-| Ver la planilla y los beneficios sociales | ✅ | ✅ | ✅ |
-| Descargar boletas en PDF y la planilla en Excel | ✅ | ✅ | ✅ |
-| Editar conceptos, AFP, regímenes y parámetros | ✅ | – | – |
+| **Cálculo de planilla:** Dctos., ajustes, carga masiva de planilla, generar y anular | ✅ | ✅ | – |
+| Recibos por honorarios (Honorarios 4ta) | ✅ | ✅ | – |
+| Editar conceptos, AFP, regímenes y parámetros (RMV, UIT, EsSalud, ONP…) | ✅ | – | – |
 | Crear, cambiar o quitar accesos de representantes | ✅ | – | – |
 | Cambiar su propia contraseña | ✅ | ✅ | ✅ |
 
-El permiso de cada representante ("usuario" o "administrador") se elige al editar su empresa.
+**Permiso efectivo del representante:**
+- Empresa **cliente** de la asesoría («Es cliente» marcado): tiene el permiso que elige el administrador ("usuario" o "administrador").
+- Empresa **suscriptora** («Es cliente» sin marcar): el propio usuario maneja su cuenta, siempre con permiso "administrador".
+- Las **cuentas de prueba** se registran como suscriptoras. Sin «Suscripción activa», pueden registrar como máximo 2 trabajadores.
+
+La base de datos aplica la misma matriz (`supabase_migracion.sql`). Además tiene candados que impiden que un representante "usuario" modifique el cálculo de la planilla, o que cualquier representante cambie los parámetros del sistema, aunque existan reglas antiguas más amplias.
+
+### Cuentas de prueba y suscripción
+
+- En la pantalla de ingreso, **Crear cuenta de prueba** permite que cualquier persona se registre con el RUC de su empresa (se valida el dígito verificador), su razón social, su régimen laboral y una contraseña.
+- La cuenta de prueba queda como empresa **suscriptora** (no cliente): tiene los mismos accesos que un representante con permiso "administrador", pero su empresa **puede registrar como máximo 2 trabajadores** (activos y cesados). Al intentar registrar un tercero, la app muestra los datos de contacto.
+- En **Empresas**, el administrador marca o desmarca **Suscripción activa** en cada empresa. Con la suscripción activa no hay límite de trabajadores. Las cuentas creadas por registro aparecen con la etiqueta "Registro de prueba".
+- El límite y la suscripción los controla la base de datos (`supabase_migracion.sql`): un representante no puede saltarse el límite ni activarse la suscripción. Las empresas que existían antes de ejecutar el script quedan con suscripción activa.
+
+### Recuperar contraseña
+
+- **¿Olvidaste tu contraseña?** envía un enlace al correo de quien ingresa con correo (el administrador). Al abrirlo, la app pide la nueva contraseña.
+- Las cuentas que ingresan con RUC no tienen correo: el administrador les asigna una contraseña nueva en *Empresas → Cambiar contraseña*.
+- Configuración necesaria en Supabase:
+  1. **Authentication → URL Configuration:** en *Site URL* y en *Redirect URLs* agrega la dirección de la app (por ejemplo `https://TU-USUARIO.github.io/planillas/`).
+  2. **Authentication → Emails → SMTP Settings:** configura un servidor SMTP propio (Gmail con contraseña de aplicación, Brevo, Resend, etc.). El servicio de correo incluido en Supabase solo envía a los miembros del equipo del proyecto y tiene un límite muy bajo.
 
 ## Pantallas
 
 | Pestaña | Quién la ve | Qué hace |
 |---|---|---|
 | **Ingreso** | Todos | Inicio de sesión con correo o RUC. Muestra mensajes claros si la contraseña es incorrecta o falla la conexión. |
-| **Empresas** | Administrador | Lista de empresas (RUC, razón social, régimen laboral). Crear, editar, eliminar, seleccionar la empresa activa y gestionar el acceso del representante legal. |
-| **Trabajadores** | Todos | Ficha de cada trabajador: DNI, nombres, puesto, pensión (ONP o AFP), salud, remuneración, banco y cuenta. Historial de aumentos con el mes desde el que rigen. Avisa si el sueldo es menor a la RMV vigente, salvo en contratos a tiempo parcial. |
-| **Planilla mensual** | Todos | Cálculo del mes por trabajador: ingresos, ONP o AFP (aporte, prima y comisión), renta de 5ta categoría, faltas, otros descuentos, neto y aportes del empleador (EsSalud, SIS, SCTR, Vida Ley, provisiones de gratificación, CTS y vacaciones). Boletas en PDF, exportación a Excel (CSV) y archivo de pagos para el banco. |
-| **Dcto.** | Administrador y rep. con permiso | Hoja del mes para registrar días de vacaciones, faltas, tardanzas, adelantos y retenciones judiciales. Por cada falta sugiere descontar el día más 1/6 del descanso semanal. Se descarga en PDF. |
+| **Empresas** | Administrador | Lista de empresas (RUC, razón social, régimen laboral). Crear, editar, eliminar, seleccionar la empresa activa y gestionar el acceso del representante legal. Las casillas **Es cliente** y **Suscripción activa** se marcan directamente en la lista. |
+| **Trabajadores** | Todos | Ficha de cada trabajador: DNI, nombres, puesto, pensión (ONP o AFP), salud, remuneración, banco y cuenta. Historial de aumentos con el mes desde el que rigen. Avisa si el sueldo es menor a la RMV vigente, salvo en contratos a tiempo parcial. **Carga masiva** desde Excel con su formato descargable: agrega trabajadores nuevos sin tocar a los registrados (opcionalmente los actualiza) y entrega un .txt con las filas observadas. |
+| **Planilla mensual › Principal** | Todos | Cálculo del mes por trabajador: ingresos, ONP o AFP (aporte, prima y comisión), renta de 5ta categoría, faltas, otros descuentos, neto y aportes del empleador (EsSalud, SIS, SCTR, Vida Ley, provisiones de gratificación, CTS y vacaciones). Boletas en PDF, exportación a Excel (CSV) y archivo de pagos para el banco. **Carga masiva de planilla** desde Excel, vinculada por N° de documento: carga días, vacaciones, tardanzas, horas extras, bonificaciones, movilidad y descuentos; nunca EsSalud, AFP, ONP ni 5ta, que siempre calcula la app. Entrega un .txt con los trabajadores no registrados. |
+| **Planilla mensual › Dctos.** (sub-pestaña) | Administrador y rep. con permiso | Hoja del mes para registrar días de vacaciones, faltas, tardanzas, adelantos y retenciones judiciales. Por cada falta sugiere descontar el día más 1/6 del descanso semanal. Se descarga en PDF. |
 | **Beneficios sociales** | Todos | Por trabajador y año: gratificaciones de julio y diciembre con bonificación extraordinaria, CTS de mayo y noviembre, vacaciones y vacaciones truncas, e indemnización por despido arbitrario con su tope. Si hay fecha de cese, calcula los montos truncos. |
+| **Honorarios 4ta** | Administrador y rep. con permiso | Importa recibos por honorarios desde el reporte `.txt` de SUNAT o los `.xml` / `.pdf` de cada recibo (los dos formatos de PDF de SUNAT), los agrupa por prestador y no los duplica. Permite ajustar la fecha de pago y la retención pensionaria, y genera los archivos `.ps4` y `.4ta` de la PLAME. |
 | **Conceptos** | Administrador | Catálogo de ingresos y descuentos adicionales. Para cada uno se indica si está afecto a EsSalud y a pensión, y si es computable para beneficios. |
 | **AFP / ONP** | Administrador | Comisión sobre flujo, comisión sobre saldo, prima de seguros y aporte de cada AFP, y tasa de la ONP. |
 | **Regímenes** | Administrador | Reglas de Microempresa, Pequeña empresa y D.L. 728: vacaciones, gratificación, CTS, indemnización y seguro de salud. Se pueden crear regímenes nuevos. |
@@ -125,17 +146,19 @@ Funciones y triggers:
 | Trigger al cambiar el RUC | El representante pasa a entrar con el RUC nuevo, con la misma contraseña. |
 | Trigger al eliminar una empresa | Elimina también el usuario de su representante. |
 
-## ⚠️ Pendiente: `supabase.sql` no cubre todo lo que usa la app
+## Base de datos: dos scripts
 
-La versión actual de `index.html` usa cosas que el script **no crea**. Si instalas desde cero solo con `supabase.sql`, estas funciones darán error hasta que se agreguen:
+1. `supabase.sql` crea la base inicial (tablas, reglas y accesos de representantes).
+2. `supabase_migracion.sql` agrega todo lo que usa la versión actual de la app:
+   - las columnas de `empresas` (`permiso`, `rubro`, ubicación, `suscripcion_activa`, `origen`);
+   - la función `emp_actualizar_datos`;
+   - las reglas para que los representantes escriban trabajadores y datos del mes;
+   - las cuentas de prueba (`registrar_prueba` y límite de 2 trabajadores);
+   - la tabla `prestadores4ta` de recibos por honorarios.
 
-1. **Columnas de `empresas`:** `permiso` (`usuario` o `administrador`), `rubro`, `ciudad`, `departamento`, `provincia` y `distrito`. Sin ellas, guardar una empresa falla.
-2. **Función `emp_actualizar_datos`:** el rep. con permiso la usa para actualizar el rubro, la dirección y la ubicación de su empresa.
-3. **Reglas RLS de escritura para representantes:** el script solo deja escribir al administrador. La app espera que:
-   - cualquier representante pueda crear y editar trabajadores de su empresa;
-   - el rep. con permiso pueda eliminar trabajadores de su empresa y guardar sus periodos.
+   No borra datos y se puede ejecutar más de una vez. Si tu base ya tenía alguna de estas piezas, se conserva.
 
-Si tu base de datos en Supabase ya tiene estos cambios, falta pasarlos a `supabase.sql` para que el repositorio quede completo.
+La carga masiva de trabajadores y de planilla no necesita tablas nuevas: usa `trabajadores` y `periodos`.
 
 ---
 
